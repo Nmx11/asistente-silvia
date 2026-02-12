@@ -2,55 +2,76 @@ import streamlit as st
 import requests
 from urllib.parse import quote
 
-# Configuración de estética y lengua
+# Configuración de la página
 st.set_page_config(page_title="Asistente de Silvia", page_icon="🌿")
 
+# Estilos visuales para que se vea como una App profesional
 st.markdown("""
     <style>
-    .main { background-color: #FDFCFB; }
-    h1 { color: #6B705C; font-family: 'Helvetica'; font-size: 24px; }
+    .main { background-color: #F8F9F5; }
+    .stTextArea textarea { border-radius: 15px; border: 1px solid #A5A58D; }
     .stButton>button { 
-        background-color: #A5A58D; 
+        background-color: #6B705C; 
         color: white; 
-        border-radius: 15px; 
+        border-radius: 20px; 
         height: 3.5em;
         font-weight: bold;
-        width: 100%;
+        transition: 0.3s;
     }
+    .stButton>button:hover { background-color: #A5A58D; border: none; }
     </style>
     """, unsafe_allow_html=True)
 
-st.title("🌿 Hola Silvia, ¿qué publicamos hoy?")
+st.title("🌿 Taller Creativo de Silvia")
 
-# Input: ¿Qué quiere Silvia hoy?
-idea = st.text_area("Escribí tu idea o el mensaje de hoy:", 
-                    placeholder="Ej: La importancia de tomarse un tiempo para uno mismo.")
+# 1. Entrada de la idea
+idea = st.text_area("¿Qué tenés en mente para hoy?", 
+                    placeholder="Ej: La importancia de poner límites con amor...")
 
-if st.button("✨ Crear mi publicación"):
+# 2. Selector de Estilo Visual
+st.write("### 🎨 Elegí el estilo de la imagen:")
+estilo = st.radio(
+    "Seleccioná uno:",
+    ["🧘‍♀️ Relax (Naturaleza, paz, desenfoque)", 
+     "🎓 Profesional (Escritorio, libros, consultorio)", 
+     "📢 Llamativo (Colores cálidos, energía)"],
+    horizontal=True
+)
+
+if st.button("✨ Generar Propuesta Completa"):
     if idea:
-        with st.spinner("Preparando todo..."):
-            # 1. Generar la Imagen (Gratis con Pollinations)
-            # Le pedimos temas de bienestar y calma
-            prompt_estetico = f"Therapeutic Instagram post, no text, peaceful nature or calm environment, soft lighting, professional photography, related to: {idea}"
-            encoded_prompt = quote(prompt_estetico)
-            url_imagen = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=1080&height=1080&nologo=true"
+        with st.spinner("Creando tu contenido..."):
+            # Ajustamos el prompt según el estilo elegido
+            if "Relax" in estilo:
+                detalles = "peaceful nature, soft sunlight, bokeh, high resolution, no people, therapeutic vibes"
+            elif "Profesional" in estilo:
+                detalles = "minimalist therapy office, notebooks, cozy plants, professional photography, soft lighting"
+            else:
+                detalles = "warm abstract colors, sunset, energy, vibrant but calm, modern aesthetic"
+
+            # 3. Generar la Imagen (Pollinations)
+            prompt_final = f"Instagram post background, {detalles}, professional, artistic, cinematic lighting. No text on image."
+            encoded_prompt = quote(prompt_final)
+            url_imagen = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=1080&height=1080&nologo=true&seed=42"
             
-            # 2. Mostrar la imagen
+            # Mostramos el resultado
             st.image(url_imagen, use_container_width=True)
             
-            # 3. Texto Sugerido en Español
-            st.subheader("📝 Tu texto para Instagram:")
-            caption = f"🌿 *Reflexión del día:*\n\n{idea}\n\nRecordá que este es un espacio para vos. ¿Cómo te sentís hoy con esto?\n\n#SaludMental #Bienestar #Terapia #SilviaTerapeuta"
+            # 4. Generar el Texto Sugerido
+            st.subheader("📝 Tu pie de foto listo:")
+            caption = f"🌿 *Reflexión:*\n\n{idea}\n\nEspero que este mensaje te acompañe hoy. ¿Cómo lo recibís?\n\n#SaludMental #Bienestar #Terapia #Autocuidado"
             
-            st.text_area("Copiá el texto desde acá:", value=caption, height=200)
+            st.text_area("Copiá el texto aquí abajo:", value=caption, height=180)
             
-            # Botón para descargar la foto al celu
-            response = requests.get(url_imagen)
-            st.download_button(label="📥 Guardar imagen en el celular", 
-                               data=response.content, 
-                               file_name="post_silvia.jpg", 
-                               mime="image/jpeg")
-            
-            st.success("¡Listo! Ahora podés subir la foto a Instagram y pegar el texto.")
+            # Botón de descarga
+            try:
+                img_data = requests.get(url_imagen).content
+                st.download_button(label="📥 Guardar imagen en mi galería", 
+                                   data=img_data, 
+                                   file_name="post_silvia.jpg", 
+                                   mime="image/jpeg")
+                st.success("¡Todo listo! Copiá el texto, descargá la imagen y subilo a Instagram.")
+            except:
+                st.error("No pudimos descargar la imagen automáticamente, pero podés mantenerla apretada para guardarla.")
     else:
-        st.warning("Silvia, por favor escribí una idea primero.")
+        st.warning("Escribí una idea para que pueda ayudarte, Silvia.")

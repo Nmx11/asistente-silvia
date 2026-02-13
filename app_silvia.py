@@ -303,7 +303,7 @@ with tab1:
                             st.session_state.carrusel_index = i
                             st.rerun()
                     with c_del:
-                        if st.button("Vaciar carrusel 🗑️", key=f"del_{i}", help="Quitar"):
+                        if st.button("🗑️", key=f"del_{i}", help="Quitar"):
                             st.session_state.carrusel.pop(i)
                             st.session_state.carrusel_index = 0
                             st.rerun()
@@ -382,6 +382,7 @@ with tab1:
                         st.success("✨ ¡Publicado con éxito en @universo.vivencial!")
                     else:
                         st.error(f"❌ Error de Meta: {respuesta}")
+
 
 
 

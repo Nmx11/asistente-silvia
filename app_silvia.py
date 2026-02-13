@@ -3,6 +3,13 @@ import requests
 import json
 import google.generativeai as genai
 
+# CARGA DE SECRETOS (Busca en la configuración de Streamlit Cloud)
+GEMINI_KEY = st.secrets.get("GEMINI_KEY", "")
+PIXABAY_KEY = st.secrets.get("PIXABAY_KEY", "")
+# Estos los dejamos listos para cuando se te desbloqueen
+META_TOKEN = st.secrets.get("META_ACCESS_TOKEN", "")
+IG_ID = st.secrets.get("IG_USER_ID", "")
+
 # 1. CONFIGURACIÓN E INTERFAZ
 st.set_page_config(page_title="Universo Vivencial | CM Suite", page_icon="🌿", layout="wide")
 
@@ -107,14 +114,13 @@ def post_to_instagram_api(caption, image_url, access_token, ig_user_id):
 # 4. SIDEBAR (CONFIGURACIÓN)
 with st.sidebar:
     st.title("⚙️ Configuración")
-    access_token = st.text_input("Meta Access Token", type="password")
-    ig_user_id = st.text_input("Instagram Business ID")
+    st.success("✨ Conexión con IA y Banco de Imágenes: ACTIVA")
     st.divider()
-    st.subheader("Cerebro IA")
-    gemini_key = st.text_input("Gemini API Key", type="password")
-    st.divider()
-    st.subheader("Banco de Imágenes")
-    pixabay_key = st.text_input("Pixabay API Key", type="password")
+    st.info("Los tokens se cargan automáticamente desde la caja fuerte de Streamlit.")
+    
+    # Si querés dejar el espacio para Meta/IG pero deshabilitado por ahora:
+    st.subheader("Estado de Meta")
+    st.write("⏳ Esperando desbloqueo...")
 
 # 5. UI PRINCIPAL
 st.title("🌿 Universo Vivencial | CM Suite")
@@ -146,11 +152,12 @@ with tab1:
             ])
 
         if st.button("✨ Generar 3 Ideas con Gemini", type="primary"):
-            if not gemini_key:
-                st.error("Falta la API Key de Gemini.")
+            # Ahora usamos GEMINI_KEY (la variable de arriba) en lugar de gemini_key (el input)
+            if not GEMINI_KEY:
+                st.error("No se encontró la clave en los Secrets.")
             else:
                 with st.spinner("Reflexionando..."):
-                    st.session_state.opciones = generar_contenido_ia(topic, tone, post_format, gemini_key)
+                    st.session_state.opciones = generar_contenido_ia(topic, tone, post_format, GEMINI_KEY)
 
         # TABLERO DE OPCIONES (Aquí es donde Silvia elige)
         if st.session_state.opciones:
@@ -187,17 +194,15 @@ with tab1:
         with col_bus1:
             # AQUÍ ESTÁ EL FIX DEL BOTÓN
             if st.button("🔍 Nueva Búsqueda"):
-                if not pixabay_key:
-                    st.error("⚠️ Poné la clave de Pixabay en el menú de la izquierda.")
+                if not PIXABAY_KEY:
+                    st.error("No se encontró la clave de Pixabay en los Secrets.")
                 else:
-                    st.session_state.current_page = 1 # Reiniciamos a la pág 1
+                    st.session_state.current_page = 1
                     st.session_state.search_query = busqueda
                     with st.spinner("Buscando inspiración visual..."):
-                        # Llamamos a la función usando la key del sidebar
-                        res, total = buscar_imagenes_pixabay(busqueda, pixabay_key, page=1)
+                        # Aquí también cambiamos pixabay_key por PIXABAY_KEY
+                        res, total = buscar_imagenes_pixabay(busqueda, PIXABAY_KEY, page=1)
                         st.session_state.search_results = res
-                        if not res:
-                            st.warning("No se encontraron imágenes. Probá con otra palabra.")
 
         # 2. Mostrar la grilla de imágenes si hay resultados
         if st.session_state.search_results:
@@ -219,9 +224,11 @@ with tab1:
                     st.session_state.search_results = res
                     st.rerun()
             with col_nav2:
+                # Ejemplo para el botón "Siguiente"
                 if st.button("Siguiente ➡️"):
                     st.session_state.current_page += 1
-                    res, total = buscar_imagenes_pixabay(st.session_state.search_query, pixabay_key, page=st.session_state.current_page)
+                    # Usamos PIXABAY_KEY aquí también
+                    res, total = buscar_imagenes_pixabay(st.session_state.search_query, PIXABAY_KEY, page=st.session_state.current_page)
                     st.session_state.search_results = res
                     st.rerun()
 
@@ -253,6 +260,7 @@ with tab1:
                         st.success("✨ ¡Publicado con éxito en @universo.vivencial!")
                     else:
                         st.error(f"❌ Error de Meta: {respuesta}")
+
 
 
 

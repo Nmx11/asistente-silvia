@@ -37,7 +37,7 @@ def generar_contenido_ia(tema, tono, formato, api_key):
         
         # 2. Especificamos el modelo (intentamos sin el prefijo models/)
         # Si sigue fallando, la librería detectará automáticamente la mejor versión
-        model = genai.GenerativeModel('gemini-3-flash')
+        model = genai.GenerativeModel('gemini-3-flash-preview')
         
         prompt = f"""
         Actúa como experto en terapia sistémica para Silvia Baldi. 
@@ -281,6 +281,7 @@ with tab1:
                         st.success("✨ ¡Publicado con éxito en @universo.vivencial!")
                     else:
                         st.error(f"❌ Error de Meta: {respuesta}")
+
 
 
 

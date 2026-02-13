@@ -33,26 +33,34 @@ if 'suggested_sticker' not in st.session_state: st.session_state.suggested_stick
 def generar_contenido_ia(tema, tono, formato, api_key):
     try:
         genai.configure(api_key=api_key)
-        # Cambiamos a 'gemini-1.5-flash-latest' que es más estable para la API
-        model = genai.GenerativeModel('gemini-1.5-flash') 
+        
+        # CAMBIO CLAVE: Usamos el nombre del modelo sin el prefijo "models/" 
+        # y forzamos la configuración de respuesta JSON
+        model = genai.GenerativeModel('gemini-1.5-flash')
         
         prompt = f"""
         Actúa como experto en terapia sistémica para Silvia Baldi. 
-        Generá 3 opciones de contenido para {formato} sobre el tema: '{tema}' en tono {tono}. 
-        IMPORTANTE: Respondé EXCLUSIVAMENTE en formato JSON con esta estructura:
+        Generá 3 opciones de post para {formato} sobre: '{tema}' en tono {tono}. 
+        Respondé ÚNICAMENTE con un objeto JSON (sin texto extra, sin markdown ```json):
         {{
-          "opcion_1": {{"texto": "...", "sticker": "..."}},
-          "opcion_2": {{"texto": "...", "sticker": "..."}},
-          "opcion_3": {{"texto": "...", "sticker": "..."}}
+          "opcion_1": {{"texto": "copy aquí", "sticker": "idea aquí"}},
+          "opcion_2": {{"texto": "copy aquí", "sticker": "idea aquí"}},
+          "opcion_3": {{"texto": "copy aquí", "sticker": "idea aquí"}}
         }}
         """
-        # Agregamos generation_config para asegurar el formato JSON
+        
+        # Usamos un método de generación más robusto
         response = model.generate_content(
-            prompt, 
+            prompt,
             generation_config={"response_mime_type": "application/json"}
         )
-        return json.loads(response.text)
+        
+        # Si la respuesta viene con markdown lo limpiamos por las dudas
+        clean_json = response.text.replace('```json', '').replace('```', '').strip()
+        return json.loads(clean_json)
+        
     except Exception as e:
+        # Esto nos dirá si es un tema de la Key o del modelo
         st.error(f"Error técnico con Gemini: {e}")
         return None
         
@@ -260,6 +268,7 @@ with tab1:
                         st.success("✨ ¡Publicado con éxito en @universo.vivencial!")
                     else:
                         st.error(f"❌ Error de Meta: {respuesta}")
+
 
 
 

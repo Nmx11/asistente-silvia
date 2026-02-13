@@ -26,23 +26,27 @@ if 'suggested_sticker' not in st.session_state: st.session_state.suggested_stick
 def generar_contenido_ia(tema, tono, formato, api_key):
     try:
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        # Cambiamos a 'gemini-1.5-flash-latest' que es más estable para la API
+        model = genai.GenerativeModel('gemini-1.5-flash') 
+        
         prompt = f"""
         Actúa como experto en terapia sistémica para Silvia Baldi. 
-        Generá 3 opciones de post para {formato} sobre: '{tema}' en tono {tono}. 
-        Respondé ÚNICAMENTE en JSON:
+        Generá 3 opciones de contenido para {formato} sobre el tema: '{tema}' en tono {tono}. 
+        IMPORTANTE: Respondé EXCLUSIVAMENTE en formato JSON con esta estructura:
         {{
-          "opcion_1": {{"texto": "copy aquí", "sticker": "idea aquí"}},
-          "opcion_2": {{"texto": "copy aquí", "sticker": "idea aquí"}},
-          "opcion_3": {{"texto": "copy aquí", "sticker": "idea aquí"}}
+          "opcion_1": {{"texto": "...", "sticker": "..."}},
+          "opcion_2": {{"texto": "...", "sticker": "..."}},
+          "opcion_3": {{"texto": "...", "sticker": "..."}}
         }}
         """
-        response = model.generate_content(prompt)
-        # Limpieza de markdown
-        clean_json = response.text.replace('```json', '').replace('```', '').strip()
-        return json.loads(clean_json)
+        # Agregamos generation_config para asegurar el formato JSON
+        response = model.generate_content(
+            prompt, 
+            generation_config={"response_mime_type": "application/json"}
+        )
+        return json.loads(response.text)
     except Exception as e:
-        st.error(f"Error de conexión con Gemini: {e}")
+        st.error(f"Error técnico con Gemini: {e}")
         return None
         
 def buscar_imagenes_pixabay(query, api_key):
@@ -103,8 +107,23 @@ with tab1:
         st.subheader("1. La Idea")
         topic = st.text_area("¿De qué hablamos hoy?", placeholder="Ej: Sanar con mamá")
         c1, c2 = st.columns(2)
-        with c1: tone = st.selectbox("Tono", ["Empático", "Profesional", "Inspirador"])
-        with c2: post_format = st.selectbox("Formato", ["Post", "Story"])
+        c1, c2 = st.columns(2)
+        with c1: 
+            tone = st.selectbox("Tono", [
+                "Empático", 
+                "Profesional", 
+                "Inspirador", 
+                "Desafiante", 
+                "Didáctico", 
+                "Cercano"
+            ])
+        with c2: 
+            post_format = st.selectbox("Formato", [
+                "Post de Feed", 
+                "Story", 
+                "Reel (Guion)", 
+                "Carrusel (Ideas)"
+            ])
 
         if st.button("✨ Generar 3 Ideas con Gemini", type="primary"):
             if not gemini_key:
@@ -186,4 +205,5 @@ with tab1:
                         st.success("✨ ¡Publicado con éxito en @universo.vivencial!")
                     else:
                         st.error(f"❌ Error de Meta: {respuesta}")
+
 

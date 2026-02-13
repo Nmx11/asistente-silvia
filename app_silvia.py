@@ -32,16 +32,18 @@ if 'suggested_sticker' not in st.session_state: st.session_state.suggested_stick
 # 3. LÓGICA DE IA (GEMINI REAL)
 def generar_contenido_ia(tema, tono, formato, api_key):
     try:
+        # 1. Configuramos la API
         genai.configure(api_key=api_key)
         
-        # CAMBIO CLAVE: Usamos el nombre del modelo sin el prefijo "models/" 
-        # y forzamos la configuración de respuesta JSON
+        # 2. Especificamos el modelo (intentamos sin el prefijo models/)
+        # Si sigue fallando, la librería detectará automáticamente la mejor versión
         model = genai.GenerativeModel('gemini-1.5-flash')
         
         prompt = f"""
         Actúa como experto en terapia sistémica para Silvia Baldi. 
         Generá 3 opciones de post para {formato} sobre: '{tema}' en tono {tono}. 
-        Respondé ÚNICAMENTE con un objeto JSON (sin texto extra, sin markdown ```json):
+        IMPORTANTE: Respondé ÚNICAMENTE con un objeto JSON válido.
+        Estructura:
         {{
           "opcion_1": {{"texto": "copy aquí", "sticker": "idea aquí"}},
           "opcion_2": {{"texto": "copy aquí", "sticker": "idea aquí"}},
@@ -49,19 +51,30 @@ def generar_contenido_ia(tema, tono, formato, api_key):
         }}
         """
         
-        # Usamos un método de generación más robusto
+        # 3. Forzamos el modo JSON para evitar que la IA agregue charla innecesaria
         response = model.generate_content(
             prompt,
             generation_config={"response_mime_type": "application/json"}
         )
         
-        # Si la respuesta viene con markdown lo limpiamos por las dudas
-        clean_json = response.text.replace('```json', '').replace('```', '').strip()
-        return json.loads(clean_json)
-        
+        # 4. Validamos que la respuesta tenga texto
+        if response and response.text:
+            return json.loads(response.text)
+        else:
+            st.error("La IA devolvió una respuesta vacía.")
+            return None
+            
     except Exception as e:
-        # Esto nos dirá si es un tema de la Key o del modelo
-        st.error(f"Error técnico con Gemini: {e}")
+        # Si el error 404 persiste, intentamos con el nombre alternativo del modelo
+        if "404" in str(e):
+            try:
+                model_alt = genai.GenerativeModel('gemini-1.5-flash-latest')
+                response = model_alt.generate_content(prompt, generation_config={"response_mime_type": "application/json"})
+                return json.loads(response.text)
+            except:
+                st.error("Error: El modelo Gemini 1.5 Flash no está disponible en tu cuenta de Google AI Studio. Verificá si tenés que aceptar nuevos términos y condiciones en la web de Google AI Studio.")
+        else:
+            st.error(f"Error técnico con Gemini: {e}")
         return None
         
 def buscar_imagenes_pixabay(query, api_key, page=1):
@@ -268,6 +281,7 @@ with tab1:
                         st.success("✨ ¡Publicado con éxito en @universo.vivencial!")
                     else:
                         st.error(f"❌ Error de Meta: {respuesta}")
+
 
 
 

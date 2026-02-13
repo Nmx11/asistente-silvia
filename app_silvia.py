@@ -283,35 +283,30 @@ with tab1:
                                 st.session_state.carrusel.append(url_img)
                                 st.toast("Añadida al carrusel 📸")
                                 
-        # --- SECCIÓN GESTOR DE CARRUSEL (MEJORADA) ---
+        # --- SECCIÓN GESTOR DE CARRUSEL (DISEÑO LIMPIO) ---
         if post_format == "Carrusel (Ideas)" and st.session_state.carrusel:
             st.divider()
             st.subheader("🖼️ Tu Carrusel (Máx 10)")
             
-            # Variable para saber qué foto del carrusel estamos mirando
             if 'carrusel_index' not in st.session_state: st.session_state.carrusel_index = 0
             
-            filas_carrusel = st.columns(5)
+            # Usamos una cuadrícula de 4 para que los botones tengan aire
+            filas_carrusel = st.columns(4)
             for i, foto in enumerate(st.session_state.carrusel):
-                with filas_carrusel[i % 5]:
-                    # Si la foto es la seleccionada, le ponemos un borde o algo distintivo
-                    st.image(foto, width=80)
-                    col_del, col_ver = st.columns(2)
-                    with col_del:
-                        if st.button("❌", key=f"del_{i}", help="Eliminar"):
-                            st.session_state.carrusel.pop(i)
-                            st.session_state.carrusel_index = 0
-                            st.rerun()
-                    with col_ver:
-                        if st.button("👁️", key=f"view_{i}", help="Ver en la Card"):
+                with filas_carrusel[i % 4]:
+                    st.image(foto, use_container_width=True)
+                    # Agrupamos botones en una sola fila para que no se amontonen
+                    c_ver, c_del = st.columns(2)
+                    with c_ver:
+                        if st.button("👁️", key=f"view_{i}", help="Ver en grande"):
                             st.session_state.current_view_img = foto
                             st.session_state.carrusel_index = i
                             st.rerun()
-            
-            if st.button("🗑️ Vaciar Carrusel"):
-                st.session_state.carrusel = []
-                st.session_state.carrusel_index = 0
-                st.rerun()
+                    with c_del:
+                        if st.button("Vaciar carrusel 🗑️", key=f"del_{i}", help="Quitar"):
+                            st.session_state.carrusel.pop(i)
+                            st.session_state.carrusel_index = 0
+                            st.rerun()
             
             # 3. Botones de Navegación (Páginas)
             st.write(f"Página actual: {st.session_state.current_page}")
@@ -387,6 +382,7 @@ with tab1:
                         st.success("✨ ¡Publicado con éxito en @universo.vivencial!")
                     else:
                         st.error(f"❌ Error de Meta: {respuesta}")
+
 
 
 

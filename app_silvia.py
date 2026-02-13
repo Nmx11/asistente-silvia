@@ -153,7 +153,7 @@ with tab1:
         if st.session_state.suggested_sticker:
             st.info(f"🤳 **Sticker recomendado:** {st.session_state.suggested_sticker}")
 
-       st.subheader("3. Multimedia Visual")
+        st.subheader("3. Multimedia Visual")
         
         # Inicializar estados de búsqueda si no existen
         if 'selected_img' not in st.session_state: st.session_state.selected_img = "https://via.placeholder.com/400"
@@ -225,6 +225,7 @@ with tab1:
                         st.success("✨ ¡Publicado con éxito en @universo.vivencial!")
                     else:
                         st.error(f"❌ Error de Meta: {respuesta}")
+
 
 
 

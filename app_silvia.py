@@ -20,7 +20,7 @@ st.markdown("""
     .ig-header { display: flex; align-items: center; margin-bottom: 10px; }
     .ig-profile-pic { width: 35px; height: 35px; background: #e0e0e0; border-radius: 50%; margin-right: 10px; }
     .ig-image { width: 100%; height: 300px; background: #f0f0f0; display: flex; align-items: center; justify-content: center; border-radius: 4px; overflow: hidden; }
-    .ig-caption { font-size: 14px; margin-top: 10px; line-height: 1.4; }
+    .ig-caption { font-size: 14px; margin-top: 10px; line-height: 1.4; color: #262626; /* Color oficial de texto de Instagram */text-align: left;}
     </style>
     """, unsafe_allow_html=True)
 
@@ -41,13 +41,13 @@ def generar_contenido_ia(tema, tono, formato, api_key):
         
         prompt = f"""
         Actúa como experto en terapia sistémica para Silvia Baldi. 
-        Generá 3 opciones de post para {formato} sobre: '{tema}' en tono {tono}. 
-        IMPORTANTE: Respondé ÚNICAMENTE con un objeto JSON válido.
-        Estructura:
+        Generá 3 opciones de post para {formato} sobre: '{tema}' en tono {tono}.
+        Cada opción debe incluir emojis pertinentes y un bloque de 5 hashtags relevantes al final.
+        Respondé ÚNICAMENTE con un objeto JSON:
         {{
-          "opcion_1": {{"texto": "copy aquí", "sticker": "idea aquí"}},
-          "opcion_2": {{"texto": "copy aquí", "sticker": "idea aquí"}},
-          "opcion_3": {{"texto": "copy aquí", "sticker": "idea aquí"}}
+          "opcion_1": {{"texto": "copy con hashtags aquí", "sticker": "idea aquí"}},
+          "opcion_2": {{"texto": "copy con hashtags aquí", "sticker": "idea aquí"}},
+          "opcion_3": {{"texto": "copy con hashtags aquí", "sticker": "idea aquí"}}
         }}
         """
         
@@ -260,10 +260,17 @@ with tab1:
         st.subheader("📱 Vista Previa")
         st.markdown(f"""
         <div class="ig-card">
-            <div class="ig-header"><div class="ig-profile-pic"></div><b>universo.vivencial</b></div>
-            <div class="ig-image"><img src="{img_url if img_url else 'https://via.placeholder.com/400'}" style="width:100%;"></div>
-            <div style="padding-top:10px;">❤️ 💬 🚀</div>
-            <div class="ig-caption"><b>universo.vivencial</b> {final_caption.replace(chr(10), '<br>')}</div>
+            <div class="ig-header">
+                <div class="ig-profile-pic"></div>
+                <b style="color: #262626;">universo.vivencial</b>
+            </div>
+            <div class="ig-image">
+                <img src="{img_url if img_url else 'https://via.placeholder.com/400'}" style="width:100%; display: block;">
+            </div>
+            <div style="padding: 10px 0 5px 0;">❤️ 💬 🚀</div>
+            <div class="ig-caption" style="color: #262626 !important; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+                <b style="color: #262626;">universo.vivencial</b> {final_caption.replace(chr(10), '<br>')}
+            </div>
         </div>
         """, unsafe_allow_html=True)
         
@@ -281,6 +288,7 @@ with tab1:
                         st.success("✨ ¡Publicado con éxito en @universo.vivencial!")
                     else:
                         st.error(f"❌ Error de Meta: {respuesta}")
+
 
 
 

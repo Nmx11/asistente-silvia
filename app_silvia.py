@@ -32,49 +32,62 @@ if 'suggested_sticker' not in st.session_state: st.session_state.suggested_stick
 # 3. LÓGICA DE IA (GEMINI REAL)
 def generar_contenido_ia(tema, tono, formato, api_key):
     try:
-        # 1. Configuramos la API
         genai.configure(api_key=api_key)
         
-        # 2. Especificamos el modelo (intentamos sin el prefijo models/)
-        # Si sigue fallando, la librería detectará automáticamente la mejor versión
-        model = genai.GenerativeModel('gemini-3-flash-preview')
+        # Usamos el modelo que ya confirmamos que funciona en tu cuenta
+        model = genai.GenerativeModel('gemini-3-flash-preview') 
         
+        # 1. Lógica de TONOS (Nueva: hace que la IA piense diferente)
+        if tono == "Cuestionador":
+            instruccion_tono = "Usá preguntas retóricas potentes que inviten a la introspección. El objetivo es que el usuario sienta la necesidad de responder en los comentarios."
+        elif tono == "Movilizador":
+            instruccion_tono = "Usá un llamado a la acción (CTA) fuerte. Incitá al público a compartir su experiencia o etiquetar a alguien."
+        else:
+            instruccion_tono = f"Mantené un tono {tono}."
+
+        # 2. Lógica de FORMATOS (Stories vs Posts)
+        if formato == "Story":
+            instrucciones_formato = """
+            - Formato Story: Frases cortas y potentes.
+            - NO uses bloques de hashtags.
+            - Sticker: Recomendá uno de interacción (Encuesta, Pregunta, Deslizador).
+            """
+        else:
+            instrucciones_formato = """
+            - Formato Post/Reel: Copy detallado y cálido.
+            - Incluí un bloque de 5 hashtags relevantes al final.
+            - Sticker: Sugerí un elemento gráfico o GIF.
+            """
+
+        # 3. Armamos el mensaje para la IA (Prompt unificado)
         prompt = f"""
         Actúa como experto en terapia sistémica para Silvia Baldi. 
-        Generá 3 opciones de post para {formato} sobre: '{tema}' en tono {tono}.
-        Cada opción debe incluir emojis pertinentes y un bloque de 5 hashtags relevantes al final.
+        Tema: '{tema}'
+        
+        INSTRUCCIONES DE ESTILO:
+        {instruccion_tono}
+        
+        REQUERIMIENTOS DE FORMATO:
+        {instrucciones_formato}
+        
         Respondé ÚNICAMENTE con un objeto JSON:
         {{
-          "opcion_1": {{"texto": "copy con hashtags aquí", "sticker": "idea aquí"}},
-          "opcion_2": {{"texto": "copy con hashtags aquí", "sticker": "idea aquí"}},
-          "opcion_3": {{"texto": "copy con hashtags aquí", "sticker": "idea aquí"}}
+          "opcion_1": {{"texto": "copy aquí", "sticker": "idea aquí"}},
+          "opcion_2": {{"texto": "copy aquí", "sticker": "idea aquí"}},
+          "opcion_3": {{"texto": "copy aquí", "sticker": "idea aquí"}}
         }}
         """
         
-        # 3. Forzamos el modo JSON para evitar que la IA agregue charla innecesaria
+        # 4. Llamada a la IA
         response = model.generate_content(
             prompt,
             generation_config={"response_mime_type": "application/json"}
         )
+        return json.loads(response.text)
         
-        # 4. Validamos que la respuesta tenga texto
-        if response and response.text:
-            return json.loads(response.text)
-        else:
-            st.error("La IA devolvió una respuesta vacía.")
-            return None
-            
     except Exception as e:
-        # Si el error 404 persiste, intentamos con el nombre alternativo del modelo
-        if "404" in str(e):
-            try:
-                model_alt = genai.GenerativeModel('gemini-1.5-flash-latest')
-                response = model_alt.generate_content(prompt, generation_config={"response_mime_type": "application/json"})
-                return json.loads(response.text)
-            except:
-                st.error("Error: El modelo Gemini 1.5 Flash no está disponible en tu cuenta de Google AI Studio. Verificá si tenés que aceptar nuevos términos y condiciones en la web de Google AI Studio.")
-        else:
-            st.error(f"Error técnico con Gemini: {e}")
+        # Simplificamos el error porque ya sabemos que tu clave y modelo funcionan
+        st.error(f"Error con Gemini: {e}")
         return None
         
 def buscar_imagenes_pixabay(query, api_key, page=1):
@@ -157,12 +170,14 @@ with tab1:
         c1, c2 = st.columns(2)
         with c1: 
             tone = st.selectbox("Tono", [
-                "Empático", 
-                "Profesional", 
+                "Empático",
+                "Cuestionador",
                 "Inspirador", 
                 "Desafiante", 
                 "Didáctico", 
-                "Cercano"
+                "Cercano",
+                "Movilizador",
+                "Profesional", 
             ])
         with c2: 
             post_format = st.selectbox("Formato", [
@@ -288,6 +303,7 @@ with tab1:
                         st.success("✨ ¡Publicado con éxito en @universo.vivencial!")
                     else:
                         st.error(f"❌ Error de Meta: {respuesta}")
+
 
 
 

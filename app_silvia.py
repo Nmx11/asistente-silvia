@@ -283,22 +283,34 @@ with tab1:
                                 st.session_state.carrusel.append(url_img)
                                 st.toast("Añadida al carrusel 📸")
                                 
-        # --- SECCIÓN GESTOR DE CARRUSEL ---
+        # --- SECCIÓN GESTOR DE CARRUSEL (MEJORADA) ---
         if post_format == "Carrusel (Ideas)" and st.session_state.carrusel:
             st.divider()
             st.subheader("🖼️ Tu Carrusel (Máx 10)")
             
-            # Mostramos miniaturas de lo que ya eligió
+            # Variable para saber qué foto del carrusel estamos mirando
+            if 'carrusel_index' not in st.session_state: st.session_state.carrusel_index = 0
+            
             filas_carrusel = st.columns(5)
             for i, foto in enumerate(st.session_state.carrusel):
                 with filas_carrusel[i % 5]:
+                    # Si la foto es la seleccionada, le ponemos un borde o algo distintivo
                     st.image(foto, width=80)
-                    if st.button("❌", key=f"del_{i}"):
-                        st.session_state.carrusel.pop(i)
-                        st.rerun()
+                    col_del, col_ver = st.columns(2)
+                    with col_del:
+                        if st.button("❌", key=f"del_{i}", help="Eliminar"):
+                            st.session_state.carrusel.pop(i)
+                            st.session_state.carrusel_index = 0
+                            st.rerun()
+                    with col_ver:
+                        if st.button("👁️", key=f"view_{i}", help="Ver en la Card"):
+                            st.session_state.current_view_img = foto
+                            st.session_state.carrusel_index = i
+                            st.rerun()
             
             if st.button("🗑️ Vaciar Carrusel"):
                 st.session_state.carrusel = []
+                st.session_state.carrusel_index = 0
                 st.rerun()
             
             # 3. Botones de Navegación (Páginas)
@@ -325,12 +337,14 @@ with tab1:
     with col_preview:
         st.subheader("📱 Vista Previa")
         
-        # Lógica de imagen
+        # Lógica de imagen para Carrusel
         es_carrusel = (post_format == "Carrusel (Ideas)" and st.session_state.carrusel)
         if es_carrusel:
-            img_a_mostrar = st.session_state.carrusel[0]
+            # Mostramos la imagen que Silvia eligió mirar con el ojito (o la primera por defecto)
+            img_a_mostrar = getattr(st.session_state, 'current_view_img', st.session_state.carrusel[0])
+            idx_actual = st.session_state.get('carrusel_index', 0) + 1
             total = len(st.session_state.carrusel)
-            badge = f'<div style="position:absolute;top:10px;right:10px;background:rgba(0,0,0,0.7);color:white;padding:4px 10px;border-radius:15px;font-size:12px;font-weight:bold;z-index:10;">1/{total} 🖼️</div>'
+            badge = f'<div style="position:absolute;top:10px;right:10px;background:rgba(0,0,0,0.7);color:white;padding:4px 10px;border-radius:15px;font-size:12px;font-weight:bold;z-index:10;">{idx_actual}/{total} 🖼️</div>'
         else:
             img_a_mostrar = img_url if img_url and "placeholder" not in img_url else "https://via.placeholder.com/400?text=Selecciona+una+imagen"
             badge = ""
@@ -373,6 +387,7 @@ with tab1:
                         st.success("✨ ¡Publicado con éxito en @universo.vivencial!")
                     else:
                         st.error(f"❌ Error de Meta: {respuesta}")
+
 
 
 

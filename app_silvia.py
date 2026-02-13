@@ -28,6 +28,7 @@ st.markdown("""
 if 'generated_copy' not in st.session_state: st.session_state.generated_copy = ""
 if 'opciones' not in st.session_state: st.session_state.opciones = None
 if 'suggested_sticker' not in st.session_state: st.session_state.suggested_sticker = ""
+if 'carrusel' not in st.session_state: st.session_state.carrusel = []
 
 # 3. LÓGICA DE IA (GEMINI REAL)
 def generar_contenido_ia(tema, tono, formato, api_key):
@@ -37,11 +38,25 @@ def generar_contenido_ia(tema, tono, formato, api_key):
         # Usamos el modelo que ya confirmamos que funciona en tu cuenta
         model = genai.GenerativeModel('gemini-3-flash-preview') 
         
-        # 1. Lógica de TONOS (Nueva: hace que la IA piense diferente)
+        # 1. Lógica de TONOS (Definición específica para cada estilo)
         if tono == "Cuestionador":
-            instruccion_tono = "Usá preguntas retóricas potentes que inviten a la introspección. El objetivo es que el usuario sienta la necesidad de responder en los comentarios."
+            instruccion_tono = "Usá preguntas retóricas potentes que inviten a la introspección. El objetivo es que el usuario se sienta interpelado."
         elif tono == "Movilizador":
-            instruccion_tono = "Usá un llamado a la acción (CTA) fuerte. Incitá al público a compartir su experiencia o etiquetar a alguien."
+            instruccion_tono = "Usá un tono energético y de liderazgo. El copy debe empujar a la acción inmediata o a un cambio de hábito."
+        elif tono == "Socrático":
+            instruccion_tono = "No des respuestas. Guía al usuario con 2 o 3 preguntas secuenciales para que descubra su propia verdad sistémica."
+        elif tono == "Empático":
+            instruccion_tono = "Priorizá la validación emocional. Usá frases como 'Te entiendo', 'Es válido sentir esto' y mucha calidez."
+        elif tono == "Inspirador":
+            instruccion_tono = "Enfocate en la superación y la luz al final del camino. Usá metáforas de crecimiento, renacimiento y esperanza."
+        elif tono == "Desafiante":
+            instruccion_tono = "Rompé mitos. Sé directo y un poco disruptivo con las creencias limitantes tradicionales de la terapia."
+        elif tono == "Didáctico":
+            instruccion_tono = "Explicá conceptos de terapia sistémica (órdenes del amor, jerarquías) como si fuera una clase clara y simple."
+        elif tono == "Cercano":
+            instruccion_tono = "Hablá como una amiga tomando un café. Usá un lenguaje menos técnico y más cotidiano, muy humano."
+        elif tono == "Profesional":
+            instruccion_tono = "Mantené un lenguaje técnico impecable, serio y con autoridad clínica. Transmití confianza y experiencia."
         else:
             instruccion_tono = f"Mantené un tono {tono}."
 
@@ -90,33 +105,32 @@ def generar_contenido_ia(tema, tono, formato, api_key):
         st.error(f"Error con Gemini: {e}")
         return None
         
-def buscar_imagenes_pixabay(query, api_key, page=1):
+def buscar_imagenes_pixabay(query, api_key, formato="Post", page=1):
     try:
-        if not api_key:
-            return [], 0
-            
-        url = f"https://pixabay.com/api/"
+        if not api_key: return [], 0
+        
+        # Si es Reel, usamos el endpoint de videos, sino el de imágenes
+        tipo = "videos" if "Reel" in formato else "images"
+        url = f"https://pixabay.com/api/{tipo if tipo == 'videos' else ''}"
+        
         params = {
             "key": api_key,
             "q": query,
-            "image_type": "illustration",
             "per_page": 12,
             "lang": "es",
             "page": page,
-            "order": "popular"
         }
         
+        # Si buscamos imágenes, mantenemos el estilo ilustración que le gusta a Silvia
+        if tipo == "images":
+            params["image_type"] = "illustration"
+            params["order"] = "popular"
+
         r = requests.get(url, params=params)
-        
-        # Si el código no es 200, hay un problema de permisos o clave
-        if r.status_code != 200:
-            st.error(f"Error de Pixabay (Status {r.status_code}): {r.text}")
-            return [], 0
-            
         data = r.json()
         return data.get('hits', []), data.get('totalHits', 0)
     except Exception as e:
-        st.error(f"Error crítico: {e}")
+        st.error(f"Error en búsqueda: {e}")
         return [], 0
         
 def post_to_instagram_api(caption, image_url, access_token, ig_user_id):
@@ -167,16 +181,16 @@ with tab1:
         st.subheader("1. La Idea")
         topic = st.text_area("¿De qué hablamos hoy?", placeholder="Ej: Sanar con mamá")
         c1, c2 = st.columns(2)
-        c1, c2 = st.columns(2)
         with c1: 
             tone = st.selectbox("Tono", [
                 "Empático",
                 "Cuestionador",
+                "Movilizador",
+                "Socrático",
                 "Inspirador", 
                 "Desafiante", 
                 "Didáctico", 
                 "Cercano",
-                "Movilizador",
                 "Profesional", 
             ])
         with c2: 
@@ -237,18 +251,46 @@ with tab1:
                     st.session_state.search_query = busqueda
                     with st.spinner("Buscando inspiración visual..."):
                         # Aquí también cambiamos pixabay_key por PIXABAY_KEY
-                        res, total = buscar_imagenes_pixabay(busqueda, PIXABAY_KEY, page=1)
+                        res, total = buscar_imagenes_pixabay(st.session_state.search_query, PIXABAY_KEY, formato=post_format, page=st.session_state.current_page)
                         st.session_state.search_results = res
 
-        # 2. Mostrar la grilla de imágenes si hay resultados
+        # 2. Mostrar la grilla de imágenes
         if st.session_state.search_results:
             cols = st.columns(3)
             for idx, item in enumerate(st.session_state.search_results):
                 with cols[idx % 3]:
-                    st.image(item['webformatURL'], use_container_width=True)
+                    url_img = item['webformatURL']
+                    st.image(url_img, use_container_width=True)
+                    
+                    # Botón para imagen única
                     if st.button("✅ Usar", key=f"img_{idx}"):
-                        st.session_state.selected_img = item['webformatURL']
+                        st.session_state.selected_img = url_img
                         st.rerun()
+                    
+                    # NUEVO: Botón para Carrusel (Solo aparece si el formato es Carrusel)
+                    if post_format == "Carrusel (Ideas)":
+                        if st.button("➕ Añadir", key=f"add_{idx}"):
+                            if url_img not in st.session_state.carrusel:
+                                st.session_state.carrusel.append(url_img)
+                                st.toast("Añadida al carrusel 📸")
+                                
+        # --- SECCIÓN GESTOR DE CARRUSEL ---
+        if post_format == "Carrusel (Ideas)" and st.session_state.carrusel:
+            st.divider()
+            st.subheader("🖼️ Tu Carrusel (Máx 10)")
+            
+            # Mostramos miniaturas de lo que ya eligió
+            filas_carrusel = st.columns(5)
+            for i, foto in enumerate(st.session_state.carrusel):
+                with filas_carrusel[i % 5]:
+                    st.image(foto, width=80)
+                    if st.button("❌", key=f"del_{i}"):
+                        st.session_state.carrusel.pop(i)
+                        st.rerun()
+            
+            if st.button("🗑️ Vaciar Carrusel"):
+                st.session_state.carrusel = []
+                st.rerun()
             
             # 3. Botones de Navegación (Páginas)
             st.write(f"Página actual: {st.session_state.current_page}")
@@ -280,7 +322,9 @@ with tab1:
                 <b style="color: #262626;">universo.vivencial</b>
             </div>
             <div class="ig-image">
-                <img src="{img_url if img_url else 'https://via.placeholder.com/400'}" style="width:100%; display: block;">
+                # Si es carrusel y hay fotos, mostramos la primera. Si no, la seleccionada normal.
+                <img src="{(st.session_state.carrusel[0] if (post_format == 'Carrusel (Ideas)' and st.session_state.carrusel) else img_url) if img_url else 'https://via.placeholder.com/400'}" style="width:100%; display: block;">
+                {f'<div style="position:absolute; top:10px; right:10px; background:rgba(0,0,0,0.6); color:white; padding:2px 8px; border-radius:10px; font-size:12px;">1/{len(st.session_state.carrusel)}</div>' if (post_format == 'Carrusel (Ideas)' and st.session_state.carrusel) else ''}
             </div>
             <div style="padding: 10px 0 5px 0;">❤️ 💬 🚀</div>
             <div class="ig-caption" style="color: #262626 !important; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
@@ -291,13 +335,15 @@ with tab1:
         
         st.divider()
         if st.button("🚀 Publicar en Instagram", type="primary"):
-            if not access_token or not ig_user_id:
-                st.error("⚠️ Faltan las credenciales de Meta en el lateral.")
+            # Usamos los nombres exactos de tus secretos
+            if not META_TOKEN or not IG_ID:
+                st.error("⚠️ Faltan las credenciales de Meta en los Secrets.")
             elif not img_url or "placeholder" in img_url:
                 st.error("⚠️ Necesitas seleccionar una imagen antes de publicar.")
             else:
                 with st.spinner("Subiendo a Instagram..."):
-                    exito, respuesta = post_to_instagram_api(final_caption, img_url, access_token, ig_user_id)
+                    # Pasamos META_TOKEN e IG_ID que definiste arriba de todo
+                    exito, respuesta = post_to_instagram_api(final_caption, img_url, META_TOKEN, IG_ID)
                     if exito:
                         st.balloons()
                         st.success("✨ ¡Publicado con éxito en @universo.vivencial!")

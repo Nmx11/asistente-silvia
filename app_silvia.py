@@ -315,20 +315,40 @@ with tab1:
 
     with col_preview:
         st.subheader("📱 Vista Previa")
+        
+        # --- 1. LÓGICA PREVIA (Fuera del HTML para evitar errores) ---
+        # Decidimos qué imagen mostrar
+        es_carrusel = (post_format == "Carrusel (Ideas)" and st.session_state.carrusel)
+        
+        if es_carrusel:
+            img_a_mostrar = st.session_state.carrusel[0]
+            total_fotos = len(st.session_state.carrusel)
+            badge_html = f'<div style="position:absolute; top:10px; right:10px; background:rgba(0,0,0,0.7); color:white; padding:4px 10px; border-radius:15px; font-size:12px; font-weight:bold; z-index:10;">1/{total_fotos} 🖼️</div>'
+        else:
+            img_a_mostrar = img_url if img_url and "placeholder" not in img_url else "https://via.placeholder.com/400?text=Selecciona+una+imagen"
+            badge_html = ""
+
+        # Limpiamos el texto para que los saltos de línea se vean bien en Instagram
+        caption_html = final_caption.replace("\n", "<br>")
+
+        # --- 2. RENDERIZADO DEL DISEÑO ---
         st.markdown(f"""
-        <div class="ig-card">
-            <div class="ig-header">
-                <div class="ig-profile-pic"></div>
-                <b style="color: #262626;">universo.vivencial</b>
+        <div class="ig-card" style="background: white; border: 1px solid #dbdbdb; border-radius: 12px; overflow: hidden; max-width: 400px; margin: auto;">
+            <div class="ig-header" style="display: flex; align-items: center; padding: 12px;">
+                <div class="ig-profile-pic" style="width: 32px; height: 32px; background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888); border-radius: 50%; margin-right: 10px;"></div>
+                <b style="color: #262626; font-family: sans-serif; font-size: 14px;">universo.vivencial</b>
             </div>
-            <div class="ig-image">
-                # Si es carrusel y hay fotos, mostramos la primera. Si no, la seleccionada normal.
-                <img src="{(st.session_state.carrusel[0] if (post_format == 'Carrusel (Ideas)' and st.session_state.carrusel) else img_url) if img_url else 'https://via.placeholder.com/400'}" style="width:100%; display: block;">
-                {f'<div style="position:absolute; top:10px; right:10px; background:rgba(0,0,0,0.6); color:white; padding:2px 8px; border-radius:10px; font-size:12px;">1/{len(st.session_state.carrusel)}</div>' if (post_format == 'Carrusel (Ideas)' and st.session_state.carrusel) else ''}
+            
+            <div class="ig-image" style="position: relative; width: 100%; min-height: 300px; background: #fafafa; display: flex; align-items: center; justify-content: center;">
+                <img src="{img_a_mostrar}" style="width: 100%; display: block; object-fit: cover;">
+                {badge_html}
             </div>
-            <div style="padding: 10px 0 5px 0;">❤️ 💬 🚀</div>
-            <div class="ig-caption" style="color: #262626 !important; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
-                <b style="color: #262626;">universo.vivencial</b> {final_caption.replace(chr(10), '<br>')}
+            
+            <div class="ig-footer" style="padding: 12px;">
+                <div style="display: flex; gap: 15px; margin-bottom: 8px; font-size: 20px;">❤️ 💬 🚀</div>
+                <div class="ig-caption" style="color: #262626; font-family: sans-serif; font-size: 14px; line-height: 1.5;">
+                    <b style="color: #262626;">universo.vivencial</b> {caption_html}
+                </div>
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -349,6 +369,7 @@ with tab1:
                         st.success("✨ ¡Publicado con éxito en @universo.vivencial!")
                     else:
                         st.error(f"❌ Error de Meta: {respuesta}")
+
 
 
 

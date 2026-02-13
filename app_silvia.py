@@ -134,27 +134,35 @@ def buscar_imagenes_pixabay(query, api_key, formato="Post", page=1):
         st.error(f"Error en búsqueda: {e}")
         return [], 0
         
-def post_to_instagram_api(caption, image_url, access_token, ig_user_id):
+def post_to_instagram_api(caption, image_url, access_token, ig_user_id, formato="Post"):
     try:
-        # 1. Crear el contenedor del post
         url_container = f"https://graph.facebook.com/v18.0/{ig_user_id}/media"
+        
+        # Configuramos el tipo de contenido
         payload = {
-            "image_url": image_url,
             "caption": caption,
             "access_token": access_token
         }
+        
+        if "Reel" in formato:
+            payload["video_url"] = image_url
+            payload["media_type"] = "REELS"
+        else:
+            payload["image_url"] = image_url
+
+        # 1. Crear contenedor
         r = requests.post(url_container, data=payload)
         if r.status_code != 200: return False, r.json()
         
         creation_id = r.json().get('id')
         
-        # 2. Publicar el contenedor
+        # 2. Publicar (Esperamos un toque por si es video)
+        import time
+        if "Reel" in formato: time.sleep(10) # Los videos tardan en procesarse
+        
         url_publish = f"https://graph.facebook.com/v18.0/{ig_user_id}/media_publish"
-        payload_pub = {
-            "creation_id": creation_id,
-            "access_token": access_token
-        }
-        r_pub = requests.post(url_publish, data=payload_pub)
+        r_pub = requests.post(url_publish, data={"creation_id": creation_id, "access_token": access_token})
+        
         return (True, r_pub.json()) if r_pub.status_code == 200 else (False, r_pub.json())
     except Exception as e:
         return False, str(e)
@@ -299,15 +307,15 @@ with tab1:
             with col_nav1:
                 if st.button("⬅️ Anterior") and st.session_state.current_page > 1:
                     st.session_state.current_page -= 1
-                    res, total = buscar_imagenes_pixabay(st.session_state.search_query, pixabay_key, page=st.session_state.current_page)
+                    # USAMOS PIXABAY_KEY (Mayúsculas) y agregamos el formato
+                    res, total = buscar_imagenes_pixabay(st.session_state.search_query, PIXABAY_KEY, formato=post_format, page=st.session_state.current_page)
                     st.session_state.search_results = res
                     st.rerun()
             with col_nav2:
-                # Ejemplo para el botón "Siguiente"
                 if st.button("Siguiente ➡️"):
                     st.session_state.current_page += 1
-                    # Usamos PIXABAY_KEY aquí también
-                    res, total = buscar_imagenes_pixabay(st.session_state.search_query, PIXABAY_KEY, page=st.session_state.current_page)
+                    # USAMOS PIXABAY_KEY (Mayúsculas) y agregamos el formato
+                    res, total = buscar_imagenes_pixabay(st.session_state.search_query, PIXABAY_KEY, formato=post_format, page=st.session_state.current_page)
                     st.session_state.search_results = res
                     st.rerun()
 
@@ -329,27 +337,23 @@ with tab1:
 
         caption_br = final_caption.replace("\n", "<br>")
 
-        # DISEÑO FINAL (Sin errores de renderizado)
-        html_design = textwrap.dedent(f"""
-            <div style="background: white; border: 1px solid #dbdbdb; border-radius: 12px; overflow: hidden; max-width: 400px; margin: auto; font-family: sans-serif;">
-                <div style="display: flex; align-items: center; padding: 12px;">
-                    <div style="width: 32px; height: 32px; background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888); border-radius: 50%; margin-right: 10px;"></div>
-                    <b style="color: #262626; font-size: 14px;">universo.vivencial</b>
-                </div>
-                
-                <div style="position: relative; width: 100%; background: #fafafa;">
-                    <img src="{img_a_mostrar}" style="width: 100%; display: block;">
-                    {badge}
-                </div>
-                
-                <div style="padding: 12px;">
-                    <div style="display: flex; gap: 15px; margin-bottom: 8px; font-size: 20px;">❤️ 💬 🚀</div>
-                    <div style="color: #262626; font-size: 14px; line-height: 1.5;">
-                        <b style="color: #262626;">universo.vivencial</b> {caption_br}
-                    </div>
-                </div>
+        # DISEÑO FINAL (Sin espacios al inicio para evitar el bloque de código)
+        html_design = f"""<div style="background:white;border:1px solid #dbdbdb;border-radius:12px;overflow:hidden;max-width:400px;margin:auto;font-family:sans-serif;">
+            <div style="display:flex;align-items:center;padding:12px;">
+            <div style="width:32px;height:32px;background:linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888);border-radius:50%;margin-right:10px;"></div>
+            <b style="color:#262626;font-size:14px;">universo.vivencial</b>
             </div>
-        """)
+            <div style="position:relative;width:100%;background:#fafafa;">
+            <img src="{img_a_mostrar}" style="width:100%;display:block;">
+            {badge}
+            </div>
+            <div style="padding:12px;">
+            <div style="display:flex;gap:15px;margin-bottom:8px;font-size:20px;">❤️ 💬 🚀</div>
+            <div style="color:#262626;font-size:14px;line-height:1.5;">
+            <b style="color:#262626;">universo.vivencial</b> {caption_br}
+            </div>
+            </div>
+            </div>"""
 
         st.markdown(html_design, unsafe_allow_html=True)
         
@@ -369,6 +373,7 @@ with tab1:
                         st.success("✨ ¡Publicado con éxito en @universo.vivencial!")
                     else:
                         st.error(f"❌ Error de Meta: {respuesta}")
+
 
 
 

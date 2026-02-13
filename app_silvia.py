@@ -248,57 +248,74 @@ with tab1:
 
         busqueda = st.text_input("🎨 Buscar arte (ej: 'familia acuarela')", placeholder="¿Qué imagen buscamos?")
         
-        col_bus1, col_bus2 = st.columns([1, 1])
-        
-        with col_bus1:
-            # AQUÍ ESTÁ EL FIX DEL BOTÓN
-            if st.button("🔍 Nueva Búsqueda"):
-                if not PIXABAY_KEY:
-                    st.error("No se encontró la clave de Pixabay en los Secrets.")
-                else:
-                    st.session_state.current_page = 1
-                    st.session_state.search_query = busqueda
-                    with st.spinner("Buscando inspiración visual..."):
-                        # Aquí también cambiamos pixabay_key por PIXABAY_KEY
-                        res, total = buscar_imagenes_pixabay(st.session_state.search_query, PIXABAY_KEY, formato=post_format, page=st.session_state.current_page)
-                        st.session_state.search_results = res
+        # BOTÓN DE BÚSQUEDA
+        if st.button("🔍 Nueva Búsqueda"):
+            if not PIXABAY_KEY:
+                st.error("No se encontró la clave de Pixabay en los Secrets.")
+            else:
+                st.session_state.current_page = 1
+                st.session_state.search_query = busqueda
+                with st.spinner("Buscando inspiración visual..."):
+                    res, total = buscar_imagenes_pixabay(st.session_state.search_query, PIXABAY_KEY, formato=post_format, page=st.session_state.current_page)
+                    st.session_state.search_results = res
 
-        # 2. Mostrar la grilla de imágenes
+        # 2. GRILLA DE RESULTADOS Y PAGINACIÓN
         if st.session_state.search_results:
+            st.markdown("**Resultados:**")
             cols = st.columns(3)
             for idx, item in enumerate(st.session_state.search_results):
                 with cols[idx % 3]:
                     url_img = item['webformatURL']
                     st.image(url_img, use_container_width=True)
                     
-                    # Botón para imagen única
-                    if st.button("✅ Usar", key=f"img_{idx}"):
-                        st.session_state.selected_img = url_img
-                        st.rerun()
-                    
-                    # NUEVO: Botón para Carrusel (Solo aparece si el formato es Carrusel)
-                    if post_format == "Carrusel (Ideas)":
-                        if st.button("➕ Añadir", key=f"add_{idx}"):
-                            if url_img not in st.session_state.carrusel:
-                                st.session_state.carrusel.append(url_img)
-                                st.toast("Añadida al carrusel 📸")
-                                
-        # --- SECCIÓN GESTOR DE CARRUSEL (DISEÑO LIMPIO) ---
+                    # Botones debajo de cada imagen
+                    c1, c2 = st.columns(2)
+                    with c1:
+                        if st.button("✅ Usar", key=f"img_{idx}"):
+                            st.session_state.selected_img = url_img
+                            st.rerun()
+                    with c2:
+                        # El botón de añadir solo aparece si estamos en modo Carrusel
+                        if post_format == "Carrusel (Ideas)":
+                            if st.button("➕ Añadir", key=f"add_{idx}"):
+                                if url_img not in st.session_state.carrusel:
+                                    st.session_state.carrusel.append(url_img)
+                                    st.toast("Añadida al carrusel 📸")
+            
+            st.divider()
+            
+            # --- NAVEGACIÓN DE PÁGINAS (Fuera del Carrusel) ---
+            col_nav1, col_nav2, col_nav3 = st.columns([1, 1, 1])
+            with col_nav1:
+                if st.button("⬅️ Anterior") and st.session_state.current_page > 1:
+                    st.session_state.current_page -= 1
+                    res, total = buscar_imagenes_pixabay(st.session_state.search_query, PIXABAY_KEY, formato=post_format, page=st.session_state.current_page)
+                    st.session_state.search_results = res
+                    st.rerun()
+            with col_nav2:
+                # Mostramos en qué página estamos en el medio
+                st.markdown(f"<div style='text-align: center; padding-top: 8px;'><b>Página {st.session_state.current_page}</b></div>", unsafe_allow_html=True)
+            with col_nav3:
+                if st.button("Siguiente ➡️"):
+                    st.session_state.current_page += 1
+                    res, total = buscar_imagenes_pixabay(st.session_state.search_query, PIXABAY_KEY, formato=post_format, page=st.session_state.current_page)
+                    st.session_state.search_results = res
+                    st.rerun()
+
+        # 3. SECCIÓN GESTOR DE CARRUSEL (DISEÑO LIMPIO)
         if post_format == "Carrusel (Ideas)" and st.session_state.carrusel:
             st.divider()
             st.subheader("🖼️ Tu Carrusel (Máx 10)")
             
             if 'carrusel_index' not in st.session_state: st.session_state.carrusel_index = 0
             
-            # Usamos una cuadrícula de 4 para que los botones tengan aire
             filas_carrusel = st.columns(4)
             for i, foto in enumerate(st.session_state.carrusel):
                 with filas_carrusel[i % 4]:
                     st.image(foto, use_container_width=True)
-                    # Agrupamos botones en una sola fila para que no se amontonen
                     c_ver, c_del = st.columns(2)
                     with c_ver:
-                        if st.button("👁️", key=f"view_{i}", help="Ver en grande"):
+                        if st.button("👁️", key=f"view_{i}", help="Ver en la Card"):
                             st.session_state.current_view_img = foto
                             st.session_state.carrusel_index = i
                             st.rerun()
@@ -308,24 +325,12 @@ with tab1:
                             st.session_state.carrusel_index = 0
                             st.rerun()
             
-            # 3. Botones de Navegación (Páginas)
-            st.write(f"Página actual: {st.session_state.current_page}")
-            col_nav1, col_nav2 = st.columns(2)
-            with col_nav1:
-                if st.button("⬅️ Anterior") and st.session_state.current_page > 1:
-                    st.session_state.current_page -= 1
-                    # USAMOS PIXABAY_KEY (Mayúsculas) y agregamos el formato
-                    res, total = buscar_imagenes_pixabay(st.session_state.search_query, PIXABAY_KEY, formato=post_format, page=st.session_state.current_page)
-                    st.session_state.search_results = res
-                    st.rerun()
-            with col_nav2:
-                if st.button("Siguiente ➡️"):
-                    st.session_state.current_page += 1
-                    # USAMOS PIXABAY_KEY (Mayúsculas) y agregamos el formato
-                    res, total = buscar_imagenes_pixabay(st.session_state.search_query, PIXABAY_KEY, formato=post_format, page=st.session_state.current_page)
-                    st.session_state.search_results = res
-                    st.rerun()
+            if st.button("🗑️ Vaciar Carrusel"):
+                st.session_state.carrusel = []
+                st.session_state.carrusel_index = 0
+                st.rerun()
 
+        st.divider()
         # Este es el link que finalmente se usa en la Preview
         img_url = st.text_input("Link seleccionado:", value=st.session_state.selected_img)
 
@@ -382,6 +387,7 @@ with tab1:
                         st.success("✨ ¡Publicado con éxito en @universo.vivencial!")
                     else:
                         st.error(f"❌ Error de Meta: {respuesta}")
+
 
 
 

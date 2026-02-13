@@ -49,15 +49,16 @@ def generar_contenido_ia(tema, tono, formato, api_key):
         st.error(f"Error técnico con Gemini: {e}")
         return None
         
-def buscar_imagenes_pixabay(query, api_key):
+def buscar_imagenes_pixabay(query, api_key, page=1):
     try:
-        # Buscamos ilustraciones/fotos artísticas
-        url = f"https://pixabay.com/api/?key={api_key}&q={query}&image_type=illustration&per_page=9&lang=es"
+        # Agregamos &page= y &order=popular para dar variedad
+        url = f"https://pixabay.com/api/?key={api_key}&q={query}&image_type=illustration&per_page=12&lang=es&page={page}&order=popular"
         r = requests.get(url)
-        return r.json().get('hits', [])
+        return r.json().get('hits', []), r.json().get('totalHits', 0)
     except Exception as e:
         st.error(f"Error buscando imágenes: {e}")
-        return []
+        return [], 0
+        
 def post_to_instagram_api(caption, image_url, access_token, ig_user_id):
     try:
         # 1. Crear el contenedor del post
@@ -152,23 +153,27 @@ with tab1:
         if st.session_state.suggested_sticker:
             st.info(f"🤳 **Sticker recomendado:** {st.session_state.suggested_sticker}")
 
-        st.subheader("3. Multimedia Visual")
+       st.subheader("3. Multimedia Visual")
         
-        # Guardamos la imagen elegida en el estado
+        # Inicializar estados de búsqueda si no existen
         if 'selected_img' not in st.session_state: st.session_state.selected_img = "https://via.placeholder.com/400"
+        if 'current_page' not in st.session_state: st.session_state.current_page = 1
+        if 'search_query' not in st.session_state: st.session_state.search_query = ""
 
-        busqueda = st.text_input("🎨 Buscar arte (ej: 'familia acuarela', 'árbol vida')", placeholder="¿Qué imagen buscamos?")
+        busqueda = st.text_input("🎨 Buscar arte (ej: 'familia acuarela')", placeholder="¿Qué imagen buscamos?")
         
-        if st.button("🔍 Buscar en Pixabay"):
-            if not pixabay_key:
-                st.error("Poné la clave de Pixabay en el costado.")
-            else:
-                with st.spinner("Buscando inspiración visual..."):
-                    resultados = buscar_imagenes_pixabay(busqueda, pixabay_key)
-                    st.session_state.search_results = resultados
-
-        # Si hay resultados, mostramos una grilla de 3x3
+        col_bus1, col_bus2 = st.columns([1, 1])
+        with col_bus1:
+            if st.button("🔍 Nueva Búsqueda"):
+                st.session_state.current_page = 1
+                st.session_state.search_query = busqueda
+                with st.spinner("Buscando..."):
+                    res, total = buscar_imagenes_pixabay(busqueda, pixabay_key, page=1)
+                    st.session_state.search_results = res
+        
+        # Mostrar resultados si existen
         if 'search_results' in st.session_state and st.session_state.search_results:
+            # Grilla de imágenes
             cols = st.columns(3)
             for idx, item in enumerate(st.session_state.search_results):
                 with cols[idx % 3]:
@@ -176,9 +181,24 @@ with tab1:
                     if st.button("✅ Usar", key=f"img_{idx}"):
                         st.session_state.selected_img = item['webformatURL']
                         st.rerun()
+            
+            # Botones de Navegación de Páginas
+            st.write(f"Página actual: {st.session_state.current_page}")
+            col_nav1, col_nav2 = st.columns(2)
+            with col_nav1:
+                if st.button("⬅️ Anterior") and st.session_state.current_page > 1:
+                    st.session_state.current_page -= 1
+                    res, total = buscar_imagenes_pixabay(st.session_state.search_query, pixabay_key, page=st.session_state.current_page)
+                    st.session_state.search_results = res
+                    st.rerun()
+            with col_nav2:
+                if st.button("Siguiente ➡️"):
+                    st.session_state.current_page += 1
+                    res, total = buscar_imagenes_pixabay(st.session_state.search_query, pixabay_key, page=st.session_state.current_page)
+                    st.session_state.search_results = res
+                    st.rerun()
 
-        # Input manual por si acaso sigue queriendo pegar un link
-        img_url = st.text_input("Link de imagen seleccionado:", value=st.session_state.selected_img)
+        img_url = st.text_input("Link seleccionado:", value=st.session_state.selected_img)
 
     with col_preview:
         st.subheader("📱 Vista Previa")
@@ -205,5 +225,6 @@ with tab1:
                         st.success("✨ ¡Publicado con éxito en @universo.vivencial!")
                     else:
                         st.error(f"❌ Error de Meta: {respuesta}")
+
 
 

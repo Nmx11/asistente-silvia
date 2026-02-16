@@ -80,7 +80,7 @@ def generar_contenido_ia(tema, tono, formato, api_key):
 
         # 3. Armamos el mensaje para la IA (Prompt unificado)
         prompt = f"""
-        Actúa como experto en terapia sistémica para Silvia Baldi. 
+        Actúa como experto en terapias holísticas para Silvia Baldi. 
         Tema: '{tema}'
         
         INSTRUCCIONES DE ESTILO:
@@ -91,9 +91,9 @@ def generar_contenido_ia(tema, tono, formato, api_key):
         
         Respondé ÚNICAMENTE con un objeto JSON:
         {{
-          "opcion_1": {{"texto": "copy aquí", "sticker": "idea aquí"}},
-          "opcion_2": {{"texto": "copy aquí", "sticker": "idea aquí"}},
-          "opcion_3": {{"texto": "copy aquí", "sticker": "idea aquí"}}
+          "opcion_1": {{"texto": "copy aquí", "sticker": "idea", "frase_placa": "FRASE CORTA PARA LA IMAGEN"}},
+          "opcion_2": {{"texto": "copy aquí", "sticker": "idea", "frase_placa": "FRASE CORTA PARA LA IMAGEN"}},
+          "opcion_3": {{"texto": "copy aquí", "sticker": "idea", "frase_placa": "FRASE CORTA PARA LA IMAGEN"}}
         }}
         """
         
@@ -108,6 +108,21 @@ def generar_contenido_ia(tema, tono, formato, api_key):
         # Simplificamos el error porque ya sabemos que tu clave y modelo funcionan
         st.error(f"Error con Gemini: {e}")
         return None
+
+def generar_temas_disparadores(api_key):
+    try:
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        prompt = """
+        Eres un experto en contenido para Silvia Baldi. Ella hace: Constelaciones Familiares, Reseteo de memoria celular, 
+        terapia floral, astrología y astrogenealogía.
+        Genera una lista de 5 temas cortos (máx 5 palabras) para posts de Instagram. 
+        Deben ser variados y profundos. Responde ÚNICAMENTE un JSON: {"temas": ["tema1", "tema2", "tema3", "tema4", "tema5"]}
+        """
+        response = model.generate_content(prompt, generation_config={"response_mime_type": "application/json"})
+        return json.loads(response.text).get("temas", [])
+    except:
+        return ["El peso de los ancestros", "Sanar la abundancia", "Vínculos sistémicos"]
         
 def buscar_imagenes_pixabay(query, api_key, formato="Post", page=1):
     try:
@@ -249,8 +264,24 @@ with tab1:
 
     with col_input:
         st.subheader("1. La Idea")
-        topic = st.text_area("¿De qué hablamos hoy?", placeholder="Ej: Sanar con mamá")
-        c1, c2 = st.columns(2)
+        
+        # Gestionamos la lista de disparadores en memoria
+        if 'disparadores' not in st.session_state:
+            st.session_state.disparadores = ["Sanar con mamá", "Órdenes del amor", "Vínculos sistémicos"]
+
+        c_wand, c_sel = st.columns([1, 5])
+        with c_wand:
+            if st.button("🪄", help="Pedir ideas nuevas"):
+                st.session_state.disparadores = generar_temas_disparadores(GEMINI_KEY)
+                st.rerun()
+        with c_sel:
+            tema_sugerido = st.selectbox("Inspiración:", ["Escribir manual..."] + st.session_state.disparadores)
+
+        val_topic = "" if tema_sugerido == "Escribir manual..." else tema_sugerido
+        topic = st.text_area("¿De qué hablamos hoy?", value=val_topic, placeholder="Ej: El lugar del padre...")
+
+        # --- AQUÍ ABAJO DEJÁ TUS SELECTORES DE TONO Y FORMATO TAL CUAL ESTÁN ---
+        
         with c1: 
             tone = st.selectbox("Tono", [
                 "Empático",
@@ -291,6 +322,10 @@ with tab1:
                     if st.button(f"✅ Usar Opción {chr(65+i)}", key=f"sel_{i}"):
                         st.session_state.generated_copy = st.session_state.opciones[key]['texto']
                         st.session_state.suggested_sticker = st.session_state.opciones[key]['sticker']
+                        
+                        # GUARDAMOS LA FRASE PARA LA FOTO
+                        frase_ia = st.session_state.opciones[key].get('frase_placa', "")
+                        st.session_state.frase_para_placa = frase_ia
                         st.rerun()
 
         st.divider()
@@ -392,15 +427,22 @@ with tab1:
                 st.rerun()
 
         st.divider()
-        # Este es el link que finalmente se usa en la Preview
+         # Este es el link que finalmente se usa en la Preview
         img_url = st.text_input("Link seleccionado:", value=st.session_state.selected_img)
 
-        # --- AGREGAR ESTO AQUÍ ---
+        # --- REEMPLAZO: Diseño de Placa Inteligente ---
         st.markdown("---")
-        st.subheader("🎨 Diseño Rápido")
-        texto_en_foto = st.text_area("Escribí lo que irá SOBRE la imagen:", 
-                                      placeholder="Ej: El orden precede al amor...",
-                                      help="Si lo dejás vacío, se publicará la imagen sola.")
+        st.subheader("🎨 Diseño de Placa")
+        
+        # Recuperamos la frase que la IA pensó para la opción elegida
+        frase_defecto = st.session_state.get('frase_para_placa', "")
+        
+        texto_en_foto = st.text_input(
+            "Texto que irá SOBRE la imagen:", 
+            value=frase_defecto, 
+            placeholder="Ej: El orden precede al amor...",
+            help="Si elegiste una opción de Gemini, esto se llena solo. Podés editarlo."
+        )
 
     with col_preview:
         st.subheader("📱 Vista Previa")
@@ -466,6 +508,7 @@ with tab1:
                         st.success("✨ ¡Publicado con éxito!")
                     else:
                         st.error(f"❌ Error de Meta: {respuesta}")
+
 
 
 

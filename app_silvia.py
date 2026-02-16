@@ -7,6 +7,7 @@ import google.generativeai as genai
 # CARGA DE SECRETOS (Busca en la configuración de Streamlit Cloud)
 GEMINI_KEY = st.secrets.get("GEMINI_KEY", "")
 PIXABAY_KEY = st.secrets.get("PIXABAY_KEY", "")
+IMGBB_KEY = st.secrets.get("IMGBB_KEY", "")
 # Estos los dejamos listos para cuando se te desbloqueen
 META_TOKEN = st.secrets.get("META_ACCESS_TOKEN", "")
 IG_ID = st.secrets.get("IG_USER_ID", "")
@@ -134,33 +135,40 @@ def buscar_imagenes_pixabay(query, api_key, formato="Post", page=1):
         st.error(f"Error en búsqueda: {e}")
         return [], 0
         
-def post_to_instagram_api(caption, image_url, access_token, ig_user_id, formato="Post"):
+def post_to_instagram_api(caption, image_url, access_token, ig_user_id, imgbb_key, formato="Post"):
     try:
-        url_container = f"https://graph.facebook.com/v19.0/{ig_user_id}/media"
+        # PASO A: EL PUENTE IMGBB (Soluciona el error 9004)
+        imgbb_url = "https://api.imgbb.com/1/upload"
+        imgbb_payload = {"key": imgbb_key, "image": image_url}
+        imgbb_res = requests.post(imgbb_url, data=imgbb_payload).json()
         
-        # Configuramos el tipo de contenido
-        payload = {
-            "caption": caption,
-            "access_token": access_token
-        }
+        if not imgbb_res.get("success"):
+            return False, f"Error en puente ImgBB: {imgbb_res}"
+        
+        url_limpia = imgbb_res["data"]["url"]
+
+        # PASO B: CREAR CONTENEDOR EN META
+        url_container = f"https://graph.facebook.com/v19.0/{ig_user_id}/media"
+        payload = {"caption": caption, "access_token": access_token}
         
         if "Reel" in formato:
-            payload["video_url"] = image_url
+            payload["video_url"] = url_limpia
             payload["media_type"] = "REELS"
         else:
-            payload["image_url"] = image_url
+            payload["image_url"] = url_limpia
 
-        # 1. Crear contenedor
         r = requests.post(url_container, data=payload)
-        if r.status_code != 200: return False, r.json()
+        res1 = r.json()
+        if r.status_code != 200: return False, res1
         
-        creation_id = r.json().get('id')
+        creation_id = res1.get('id')
         
-        # 2. Publicar (Esperamos un toque por si es video)
+        # PASO C: EL DESCANSO (15 segundos clave)
         import time
-        if "Reel" in formato: time.sleep(10) # Los videos tardan en procesarse
+        time.sleep(15)
         
-        url_publish = f"https://graph.facebook.com/v18.0/{ig_user_id}/media_publish"
+        # PASO D: PUBLICAR
+        url_publish = f"https://graph.facebook.com/v19.0/{ig_user_id}/media_publish"
         r_pub = requests.post(url_publish, data={"creation_id": creation_id, "access_token": access_token})
         
         return (True, r_pub.json()) if r_pub.status_code == 200 else (False, r_pub.json())
@@ -373,20 +381,27 @@ with tab1:
         
         st.divider()
         if st.button("🚀 Publicar en Instagram", type="primary"):
-            # Usamos los nombres exactos de tus secretos
-            if not META_TOKEN or not IG_ID:
-                st.error("⚠️ Faltan las credenciales de Meta en los Secrets.")
+            if not META_TOKEN or not IG_ID or not IMGBB_KEY:
+                st.error("⚠️ Faltan credenciales (Meta o ImgBB) en los Secrets.")
             elif not img_url or "placeholder" in img_url:
                 st.error("⚠️ Necesitas seleccionar una imagen antes de publicar.")
             else:
-                with st.spinner("Subiendo a Instagram..."):
-                    # Pasamos META_TOKEN e IG_ID que definiste arriba de todo
-                    exito, respuesta = post_to_instagram_api(final_caption, img_url, META_TOKEN, IG_ID)
+                with st.spinner("🔄 Procesando imagen y subiendo..."):
+                    exito, respuesta = post_to_instagram_api(
+                        final_caption, 
+                        img_url, 
+                        META_TOKEN, 
+                        IG_ID, 
+                        IMGBB_KEY, 
+                        post_format
+                    )
+                    
                     if exito:
                         st.balloons()
-                        st.success("✨ ¡Publicado con éxito en @universo.vivencial!")
+                        st.success("✨ ¡Publicado con éxito!")
                     else:
                         st.error(f"❌ Error de Meta: {respuesta}")
+
 
 
 

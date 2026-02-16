@@ -113,34 +113,41 @@ def generar_contenido_ia(tema, tono, formato, api_key):
 def generar_temas_disparadores(api_key):
     import random
     try:
-        # Recuperamos lo que ya se mostró para no repetirlo
-        historial = st.session_state.get('historial_temas', [])[-15:] # Últimos 15
-        exclusiones = ", ".join(historial)
-
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel('gemini-1.5-flash')
         
-        especialidades = ["Constelaciones", "Astrología", "Flores de Bach", "Memoria Celular"]
-        mision = random.choice(especialidades)
-        
+        # Le damos un "toque" distinto cada vez para que no repita
+        estilos = ["Constelaciones Familiares", "Astrogenealogía", "Memoria Celular", "Flores de Bach"]
+        enfoque = random.choice(estilos)
+        semilla = random.randint(1, 9999)
+
         prompt = f"""
-        Sos el creativo de Silvia Baldi. 
-        Misión: Generá 5 temas para Instagram sobre {mision}.
+        Sos un experto en terapias holísticas. Generá 5 temas para Instagram sobre {enfoque}.
+        ID Aleatorio: {semilla}.
         
-        REGLA CRÍTICA: No podés usar nada parecido a estos temas previos: [{exclusiones}].
-        Buscá ángulos nuevos, preguntas incómodas o curiosidades de {mision}.
-        Escribí solo los 5 temas, uno por línea, sin números.
+        REGLAS:
+        - Frases profundas y complejas (ej: 'El síntoma como mensaje del árbol').
+        - Máximo 7 palabras. 
+        - Que resuenen con el alma de quien lee.
+        - NO uses números ni guiones. Escribí una frase por línea.
         """
         
         response = model.generate_content(prompt, generation_config={"temperature": 1.0})
-        temas = [line.strip() for line in response.text.split('\n') if line.strip()][:5]
+        temas = [line.strip() for line in response.text.split('\n') if len(line.strip()) > 5][:5]
         
-        # Guardamos en el historial para la próxima vez
-        st.session_state['historial_temas'] = historial + temas
+        if len(temas) < 3: raise Exception("IA perezosa")
         return temas
     except:
-        pool_emergencia = ["El lugar del padre", "Sanar con la madre", "Lealtades invisibles", "El éxito y el orden", "Tu síntoma te guía"]
-        return random.sample(pool_emergencia, 5)
+        # Si la IA falla, este es el pozo de sabiduría de Silvia (siempre complejo)
+        sabiduria_silvia = [
+            "El éxito tiene la cara de la madre",
+            "Lo que se excluye se repite en el árbol",
+            "Tu síntoma es una puerta a la sanación",
+            "Lealtades invisibles que frenan tu vida",
+            "El orden en el amor para que fluya la vida",
+            "Sanar el pasado para habitar el presente"
+        ]
+        return random.sample(sabiduria_silvia, 5)
         
 def buscar_imagenes_pixabay(query, api_key, formato="Post", page=1):
     try:
@@ -282,39 +289,35 @@ with tab1:
 
     with col_input:
         st.subheader("1. La Idea")
-
-        # --- 1. PREPARAMOS LA MEMORIA (Esto es lo nuevo) ---
-        if 'historial_temas' not in st.session_state:
-            st.session_state.historial_temas = []
-
-        # --- 2. CARGAMOS LOS DISPARADORES INICIALES ---
+        
+        # Si no hay ideas, las creamos YA mismo antes de mostrar nada
         if 'disparadores' not in st.session_state:
-            st.session_state.disparadores = ["Cargando ideas... toque la varita 🪄"]
+            with st.spinner("Invocando sabiduría..."):
+                # Esto garantiza que al abrir la app ya haya 5 temas pro
+                st.session_state.disparadores = generar_temas_disparadores(GEMINI_KEY)
+                st.session_state.reset_key = 0
 
-        # --- 3. CREAMOS LAS COLUMNAS ---
         c_wand, c_sel = st.columns([1, 5])
         
         with c_wand:
-            if st.button("🪄", key="btn_magico"):
-                with st.spinner("Invocando ideas..."):
-                    # Ahora la función podrá leer el historial que creamos arriba
-                    nuevos = generar_temas_disparadores(GEMINI_KEY)
-                    st.session_state.disparadores = nuevos
-                    st.session_state.reset_key = random.randint(1, 99999)
+            # Al tocar la varita, cambia TODO
+            if st.button("🪄", key="btn_magic_final"):
+                with st.spinner("🔄"):
+                    st.session_state.disparadores = generar_temas_disparadores(GEMINI_KEY)
+                    st.session_state.reset_key = random.randint(1, 9999)
                     st.rerun()
         
         with c_sel:
-            # Si no existe la clave, la creamos
-            if 'reset_key' not in st.session_state: st.session_state.reset_key = 0
-            
+            r_key = st.session_state.get('reset_key', 0)
             tema_sugerido = st.selectbox(
                 "Inspiración del día:", 
                 ["Escribir manual..."] + st.session_state.disparadores,
-                key=f"select_final_{st.session_state.reset_key}" # <--- ESTO ES VITAL
+                key=f"sel_v3_{r_key}"
             )
 
-        val_topic = "" if tema_sugerido == "Escribir manual..." or "Cargando" in tema_sugerido else tema_sugerido
-        topic = st.text_area("¿De qué hablamos hoy?", value=val_topic)
+        val_topic = "" if tema_sugerido == "Escribir manual..." else tema_sugerido
+        topic = st.text_area("¿De qué hablamos hoy?", value=val_topic, placeholder="Ej: El lugar del padre...")
+        
         # --- AQUÍ ABAJO DEJÁ TUS SELECTORES DE TONO Y FORMATO TAL CUAL ESTÁN ---
         
         c1, c2 = st.columns(2) # <--- ESTA LÍNEA ES LA QUE CREA 'c1' y 'c2'
@@ -535,6 +538,7 @@ with tab1:
                         st.success("✨ ¡Publicado con éxito!")
                     else:
                         st.error(f"❌ Error de Meta: {respuesta}")
+
 
 
 

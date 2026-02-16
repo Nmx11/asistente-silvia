@@ -349,13 +349,13 @@ with tab1:
             ])
 
         # --- BUSCÁ ESTA PARTE EN TU CÓDIGO ---
-        if st.button("✨ Generar 3 Ideas con Groq", type="primary"):
-        if not GROQ_KEY:
-            st.error("No se encontró la clave GROQ_KEY en los Secrets.")
-        else:
-            with st.spinner("Reflexionando con Groq..."):
-                # Cambiamos GEMINI_KEY por GROQ_KEY
-                st.session_state.opciones = generar_contenido_ia(topic, tone, post_format, GROQ_KEY)
+       if st.button("✨ Generar 3 Ideas con Groq", type="primary"):
+            # Este bloque DEBE tener 4 espacios (o un Tab) de sangría respecto al 'if' de arriba
+            if not GROQ_KEY:
+                st.error("No se encontró la clave GROQ_KEY en los Secrets.")
+            else:
+                with st.spinner("Reflexionando con Groq..."):
+                    st.session_state.opciones = generar_contenido_ia(topic, tone, post_format, GROQ_KEY)
 
         # TABLERO DE OPCIONES (Aquí es donde Silvia elige)
         if st.session_state.opciones:
@@ -555,6 +555,7 @@ with tab1:
                         st.success("✨ ¡Publicado con éxito!")
                     else:
                         st.error(f"❌ Error de Meta: {respuesta}")
+
 
 
 

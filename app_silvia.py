@@ -284,12 +284,11 @@ tab1, tab2 = st.tabs(["📝 Crear Contenido", "📅 Calendario"])
 with tab1:
     col_input, col_preview = st.columns([1, 1])
 
-    st.subheader("1. La Idea")
+    with col_input: # <--- ESTA LÍNEA ES LA QUE FALTABA
+        st.subheader("1. La Idea")
         
-        # --- NUEVO: ESTO GARANTIZA QUE EL INICIO SEA ALEATORIO ---
+        # Inicializamos la lista si no existe
         if 'disparadores' not in st.session_state:
-            # En lugar de una lista fija, llamamos a la función la primera vez
-            # Si no hay key aún, ponemos unos genéricos pero variados
             st.session_state.disparadores = [
                 "El peso de lo no dicho", 
                 "Tu síntoma te habla", 
@@ -299,18 +298,14 @@ with tab1:
         c_wand, c_sel = st.columns([1, 5])
         
         with c_wand:
-            # El botón de la varita ahora es un "Barajar"
             if st.button("🪄", help="¡Nuevas ideas ahora!"):
                 with st.spinner("Cambiando de tema..."):
-                    # Forzamos la generación de temas totalmente nuevos
                     nuevas = generar_temas_disparadores(GEMINI_KEY)
                     st.session_state.disparadores = nuevas
-                    # Cambiamos la clave para que el selectbox se entere del cambio
                     st.session_state.reset_key = random.randint(1, 9999)
                     st.rerun()
         
         with c_sel:
-            # El key dinámico es lo que mata el bucle de repetición
             r_key = st.session_state.get('reset_key', 0)
             tema_sugerido = st.selectbox(
                 "Inspiración del día:", 
@@ -541,6 +536,7 @@ with tab1:
                         st.success("✨ ¡Publicado con éxito!")
                     else:
                         st.error(f"❌ Error de Meta: {respuesta}")
+
 
 
 

@@ -108,57 +108,6 @@ def generar_contenido_ia(tema, tono, formato, api_key):
         st.error(f"Error con Gemini: {e}")
         return None
 
-def generar_temas_disparadores(api_key):
-    # 3. LÓGICA DE IA (CONEXIÓN DIRECTA PARA EVITAR 404)
-def generar_contenido_ia(tema, tono, formato, api_key):
-    import requests
-    import json
-    
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
-    headers = {'Content-Type': 'application/json'}
-
-    # 1. Lógica de TONOS
-    tonos_dict = {
-        "Cuestionador": "Usá preguntas retóricas potentes que inviten a la introspección.",
-        "Movilizador": "Usá un tono energético y de liderazgo. Empujá a la acción.",
-        "Socrático": "Guía al usuario con preguntas secuenciales para que descubra su verdad.",
-        "Empático": "Priorizá la validación emocional y la calidez.",
-        "Inspirador": "Enfocada en el crecimiento, renacimiento y esperanza.",
-        "Desafiante": "Rompé mitos. Sé disruptiva con las creencias limitantes.",
-        "Didáctico": "Explicá conceptos sistémicos como una clase clara.",
-        "Cercano": "Hablá como una amiga tomando un café.",
-        "Profesional": "Lenguaje técnico impecable y autoridad clínica."
-    }
-    instruccion_tono = tonos_dict.get(tono, f"Mantené un tono {tono}.")
-
-    # 2. Lógica de FORMATOS
-    if formato == "Story":
-        instrucciones_formato = "- Formato Story: Frases cortas. Sin hashtags. Sticker de interacción."
-    else:
-        instrucciones_formato = "- Formato Post: Copy detallado. Incluí 5 hashtags al final."
-
-    # 3. Prompt
-    prompt = f"""
-    Actúa como Silvia Baldi. Tema: '{tema}'. Estilo: {instruccion_tono}. {instrucciones_formato}
-    Responde ÚNICAMENTE un JSON con este formato:
-    {{
-      "opcion_1": {{"texto": "...", "sticker": "...", "frase_placa": "..."}},
-      "opcion_2": {{"texto": "...", "sticker": "...", "frase_placa": "..."}},
-      "opcion_3": {{"texto": "...", "sticker": "...", "frase_placa": "..."}}
-    }}
-    """
-
-    payload = {"contents": [{"parts": [{"text": prompt}]}]}
-
-    try:
-        response = requests.post(url, headers=headers, json=payload)
-        res_json = response.json()
-        texto_sucio = res_json['candidates'][0]['content']['parts'][0]['text']
-        texto_limpio = texto_sucio.replace("```json", "").replace("```", "").strip()
-        return json.loads(texto_limpio)
-    except Exception as e:
-        st.error(f"Error con Gemini: {e}")
-        return None
 
 def generar_temas_disparadores(api_key):
     try:

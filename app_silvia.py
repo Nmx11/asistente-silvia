@@ -1,3 +1,4 @@
+import os
 import textwrap
 import streamlit as st
 import requests
@@ -9,13 +10,11 @@ import io
 
 # CARGA DE SECRETOS (Busca en la configuración de Streamlit Cloud)
 GEMINI_KEY = st.secrets.get("GEMINI_KEY", "")
-GROQ_KEY = st.secrets.get("GROQ_KEY", "")
 PIXABAY_KEY = st.secrets.get("PIXABAY_KEY", "")
 IMGBB_KEY = st.secrets.get("IMGBB_KEY", "")
 # Estos los dejamos listos para cuando se te desbloqueen
 META_TOKEN = st.secrets.get("META_ACCESS_TOKEN", "")
 IG_ID = st.secrets.get("IG_USER_ID", "")
-
 
 # 1. CONFIGURACIÓN E INTERFAZ
 st.set_page_config(page_title="Universo Vivencial | CM Suite", page_icon="🌿", layout="wide")
@@ -39,97 +38,91 @@ if 'carrusel' not in st.session_state: st.session_state.carrusel = []
 
 # 3. LÓGICA DE IA (GEMINI REAL)
 def generar_contenido_ia(tema, tono, formato, api_key):
-
-    # 1. DIRECCIÓN DE GROQ (Plan B)
-    url = "https://api.groq.com/openai/v1/chat/completions"
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json"
-    }
-
-    # 2. TU LÓGICA DE TONOS (Intacta)
-    if tono == "Cuestionador":
-        instruccion_tono = "Usá preguntas retóricas potentes que inviten a la introspección. El objetivo es que el usuario se sienta interpelado."
-    elif tono == "Movilizador":
-        instruccion_tono = "Usá un tono energético y de liderazgo. El copy debe empujar a la acción inmediata o a un cambio de hábito."
-    elif tono == "Socrático":
-        instruccion_tono = "No des respuestas. Guía al usuario con 2 o 3 preguntas secuenciales para que descubra su propia verdad sistémica."
-    elif tono == "Empático":
-        instruccion_tono = "Priorizá la validación emocional. Usá frases como 'Te entiendo', 'Es válido sentir esto' y mucha calidez."
-    elif tono == "Inspirador":
-        instruccion_tono = "Enfocate en la superación y la luz al final del camino. Usá metáforas de crecimiento, renacimiento y esperanza."
-    elif tono == "Desafiante":
-        instruccion_tono = "Rompé mitos. Sé directo y un poco disruptivo con las creencias limitantes tradicionales de la terapia."
-    elif tono == "Didáctico":
-        instruccion_tono = "Explicá conceptos de terapia sistémica (órdenes del amor, jerarquías) como si fuera una clase clara y simple."
-    elif tono == "Cercano":
-        instruccion_tono = "Hablá como una amiga tomando un café. Usá un lenguaje menos técnico y más cotidiano, muy humano."
-    elif tono == "Profesional":
-        instruccion_tono = "Mantené un lenguaje técnico impecable, serio y con autoridad clínica. Transmití confianza y experiencia."
-    else:
-        instruccion_tono = f"Mantené un tono {tono}."
-
-    # 3. TU LÓGICA DE FORMATOS (Intacta)
-    if formato == "Story":
-        instrucciones_formato = """
-        - Formato Story: Frases cortas y potentes.
-        - NO uses bloques de hashtags.
-        - Sticker: Recomendá uno de interacción (Encuesta, Pregunta, Deslizador).
-        """
-    else:
-        instrucciones_formato = """
-        - Formato Post/Reel: Copy detallado y cálido.
-        - Incluí un bloque de 5 hashtags relevantes al final.
-        - Sticker: Sugerí un elemento gráfico o GIF.
-        """
-
-    # 4. TU PROMPT ORIGINAL
-    # 4. EL PROMPT CON EL ADN DE SILVIA BALDI
-    prompt_text = f"""
-    Sos Silvia Baldi, creadora de 'Universo Vivencial'. 
-    Tu especialidad son las Constelaciones Familiares individuales, Reseteo de memoria celular, Terapia Floral, Astrología y Astrogenealogía.
-
-    TEMA PARA HOY: '{tema}'
-    
-    FILOSOFÍA DE MARCA:
-    - Mirada Sistémica: Todo síntoma viene de una lealtad al árbol.
-    - Memoria Celular: El cuerpo guarda lo que el clan calló.
-    - Astrogenealogía: El cielo al nacer cuenta la historia de nuestros ancestros.
-    - Terapia Floral: Puentes vibracionales para sanar emociones.
-
-    INSTRUCCIONES DE ESTILO: {instruccion_tono}
-    FORMATO: {instrucciones_formato}
-    
-    Respondé ÚNICAMENTE un JSON con 'opcion_1', 'opcion_2', 'opcion_3'. 
-    Cada una con 'texto' (profundo y poético), 'sticker' y 'frase_placa'.
-    """
-
-    # 5. CONFIGURACIÓN DE RESPUESTA (Identidad Profunda)
-    payload = {
-        "model": "llama-3.3-70b-versatile",
-        "messages": [
-            {
-                "role": "system", 
-                "content": "Sos Silvia Baldi. No usás frases clichés de autoayuda. Usás terminología de Constelaciones, Astrogenealogía y Sanación de Memoria Celular. Tu tono es sanador, profesional y místico."
-            },
-            {"role": "user", "content": prompt_text}
-        ],
-        "response_format": {"type": "json_object"},
-        "temperature": 0.8  # Subimos un poco la creatividad
-    }
-
     try:
-        response = requests.post(url, headers=headers, json=payload)
-        if response.status_code != 200:
-            st.error(f"Error de Groq: {response.text}")
-            return None
+       # Cambiá esto:
+        model = genai.GenerativeModel('gemini-1.5-flash')
         
-        res_json = response.json()
-        contenido = res_json['choices'][0]['message']['content']
-        return json.loads(contenido)
+        # Por esto (con el prefijo 'models/'):
+        model = genai.GenerativeModel('models/gemini-1.5-flash')
+        
+        # 3. El resto de tu prompt sigue igual...
+        prompt = f"""
+        Actúa como experto en terapias holísticas para Silvia Baldi. 
+        Tema: '{tema}'
+        ... (tu lógica de prompt)
+        """
+        
+        # 4. Llamada con configuración de JSON
+        response = model.generate_content(
+            prompt,
+            generation_config={"response_mime_type": "application/json"}
+        )
+        return json.loads(response.text)
+        
+        # 1. Lógica de TONOS (Definición específica para cada estilo)
+        if tono == "Cuestionador":
+            instruccion_tono = "Usá preguntas retóricas potentes que inviten a la introspección. El objetivo es que el usuario se sienta interpelado."
+        elif tono == "Movilizador":
+            instruccion_tono = "Usá un tono energético y de liderazgo. El copy debe empujar a la acción inmediata o a un cambio de hábito."
+        elif tono == "Socrático":
+            instruccion_tono = "No des respuestas. Guía al usuario con 2 o 3 preguntas secuenciales para que descubra su propia verdad sistémica."
+        elif tono == "Empático":
+            instruccion_tono = "Priorizá la validación emocional. Usá frases como 'Te entiendo', 'Es válido sentir esto' y mucha calidez."
+        elif tono == "Inspirador":
+            instruccion_tono = "Enfocate en la superación y la luz al final del camino. Usá metáforas de crecimiento, renacimiento y esperanza."
+        elif tono == "Desafiante":
+            instruccion_tono = "Rompé mitos. Sé directo y un poco disruptivo con las creencias limitantes tradicionales de la terapia."
+        elif tono == "Didáctico":
+            instruccion_tono = "Explicá conceptos de terapia sistémica (órdenes del amor, jerarquías) como si fuera una clase clara y simple."
+        elif tono == "Cercano":
+            instruccion_tono = "Hablá como una amiga tomando un café. Usá un lenguaje menos técnico y más cotidiano, muy humano."
+        elif tono == "Profesional":
+            instruccion_tono = "Mantené un lenguaje técnico impecable, serio y con autoridad clínica. Transmití confianza y experiencia."
+        else:
+            instruccion_tono = f"Mantené un tono {tono}."
+
+        # 2. Lógica de FORMATOS (Stories vs Posts)
+        if formato == "Story":
+            instrucciones_formato = """
+            - Formato Story: Frases cortas y potentes.
+            - NO uses bloques de hashtags.
+            - Sticker: Recomendá uno de interacción (Encuesta, Pregunta, Deslizador).
+            """
+        else:
+            instrucciones_formato = """
+            - Formato Post/Reel: Copy detallado y cálido.
+            - Incluí un bloque de 5 hashtags relevantes al final.
+            - Sticker: Sugerí un elemento gráfico o GIF.
+            """
+
+        # 3. Armamos el mensaje para la IA (Prompt unificado)
+        prompt = f"""
+        Actúa como experto en terapias holísticas para Silvia Baldi. 
+        Tema: '{tema}'
+        
+        INSTRUCCIONES DE ESTILO:
+        {instruccion_tono}
+        
+        REQUERIMIENTOS DE FORMATO:
+        {instrucciones_formato}
+        
+        Respondé ÚNICAMENTE con un objeto JSON:
+        {{
+          "opcion_1": {{"texto": "copy aquí", "sticker": "idea", "frase_placa": "FRASE CORTA PARA LA IMAGEN"}},
+          "opcion_2": {{"texto": "copy aquí", "sticker": "idea", "frase_placa": "FRASE CORTA PARA LA IMAGEN"}},
+          "opcion_3": {{"texto": "copy aquí", "sticker": "idea", "frase_placa": "FRASE CORTA PARA LA IMAGEN"}}
+        }}
+        """
+        
+        # 4. Llamada a la IA
+        response = model.generate_content(
+            prompt,
+            generation_config={"response_mime_type": "application/json"}
+        )
+        return json.loads(response.text)
         
     except Exception as e:
-        st.error(f"Error de conexión: {e}")
+        st.error(f"Error con Gemini: {e}")
         return None
 
 def generar_temas_disparadores(api_key):
@@ -354,14 +347,13 @@ with tab1:
                 "Post de Feed", "Story", "Reel (Guion)", "Carrusel (Ideas)"
             ])
 
-        # --- BUSCÁ ESTA PARTE EN TU CÓDIGO ---
-        if st.button("✨ Generar 3 Ideas con Groq", type="primary"):
-            # Este bloque DEBE tener 4 espacios (o un Tab) de sangría respecto al 'if' de arriba
-            if not GROQ_KEY:
-                st.error("No se encontró la clave GROQ_KEY en los Secrets.")
+        if st.button("✨ Generar 3 Ideas con Gemini", type="primary"):
+            # Ahora usamos GEMINI_KEY (la variable de arriba) en lugar de gemini_key (el input)
+            if not GEMINI_KEY:
+                st.error("No se encontró la clave en los Secrets.")
             else:
-                with st.spinner("Reflexionando con Groq..."):
-                    st.session_state.opciones = generar_contenido_ia(topic, tone, post_format, GROQ_KEY)
+                with st.spinner("Reflexionando..."):
+                    st.session_state.opciones = generar_contenido_ia(topic, tone, post_format, GEMINI_KEY)
 
         # TABLERO DE OPCIONES (Aquí es donde Silvia elige)
         if st.session_state.opciones:
@@ -561,37 +553,3 @@ with tab1:
                         st.success("✨ ¡Publicado con éxito!")
                     else:
                         st.error(f"❌ Error de Meta: {respuesta}")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

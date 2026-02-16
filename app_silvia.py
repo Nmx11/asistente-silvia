@@ -37,7 +37,7 @@ if 'suggested_sticker' not in st.session_state: st.session_state.suggested_stick
 if 'carrusel' not in st.session_state: st.session_state.carrusel = []
 
 # 3. LÓGICA DE IA (GEMINI REAL)
-ddef generar_contenido_ia(tema, tono, formato, api_key):
+def generar_contenido_ia(tema, tono, formato, api_key):
     import requests
     import json
 
@@ -532,4 +532,5 @@ with tab1:
                         st.success("✨ ¡Publicado con éxito!")
                     else:
                         st.error(f"❌ Error de Meta: {respuesta}")
+
 

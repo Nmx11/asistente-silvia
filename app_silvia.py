@@ -113,39 +113,56 @@ def generar_contenido_ia(tema, tono, formato, api_key):
         return None
 
 def generar_temas_disparadores(api_key):
-    import random
-    import time
     try:
         genai.configure(api_key=api_key)
-        # Volvemos al modelo Flash que te funcionaba bien
         model = genai.GenerativeModel('gemini-1.5-flash')
         
-        # Le enviamos la hora exacta. Esto obliga a la IA a no repetir.
-        semilla = time.time()
+        # Elegimos una terapia al azar para enfocar a la IA
+        terapias = ["Constelaciones Familiares", "Memoria Celular", "Astrología", "Flores de Bach"]
+        foco = random.choice(terapias)
+        
+        # EL TRUCO DEFINITIVO: La hora exacta hace que el prompt sea 100% nuevo siempre
+        hora_unica = time.time() 
         
         prompt = f"""
-        Sos Silvia Baldi, terapeuta sistémica. Generá 5 temas ÚNICOS para Instagram.
-        Referencia temporal: {semilla}
-        REGLAS:
-        - Frases largas y profundas (mínimo 6 palabras).
-        - Temas: Constelaciones, ancestros, duelos, abundancia.
-        - Prohibido repetir temas de "Vínculos", "Energía" o "Destino".
-        - Respondé solo con las 5 frases, una por línea.
+        Sos el asistente creativo de Silvia Baldi, terapeuta holística.
+        ID Único: {hora_unica}
+        Tema a explorar HOY: {foco}.
+        
+        Inventá 5 frases para títulos de Instagram. 
+        Reglas:
+        - Que sean reflexiones profundas o preguntas (ej: "¿A quién le sos leal con tu dolor?").
+        - No uses frases hechas.
+        - Respondé SOLO con las frases, una por línea. SIN números, SIN asteriscos.
         """
         
-        response = model.generate_content(prompt, generation_config={"temperature": 1.0})
+        response = model.generate_content(prompt, generation_config={"temperature": 0.9})
         
-        # Procesamos la respuesta
-        temas = [linea.strip() for linea in response.text.split('\n') if len(linea.strip()) > 5]
-        
-        if not temas:
-            raise ValueError("La IA respondió pero el formato fue vacío.")
+        # Limpiamos la respuesta por si la IA le pone asteriscos o guiones de necia
+        lineas = response.text.split('\n')
+        temas_limpios = []
+        for linea in lineas:
+            # Sacamos asteriscos y guiones
+            limpia = linea.replace('*', '').replace('-', '').strip()
+            # Sacamos números si la IA los pone (ej: "1. Tema" -> "Tema")
+            limpia = re.sub(r'^\d+[\.\-\)]\s*', '', limpia)
             
-        return temas[:5]
-
+            if len(limpia) > 5: # Solo guardamos si es una frase real
+                temas_limpios.append(limpia)
+                
+        if len(temas_limpios) < 3:
+            raise ValueError("Respuesta corta")
+            
+        return temas_limpios[:5]
+        
     except Exception as e:
-        # En lugar de temas repetidos, mostramos el error técnico real para arreglarlo
-        return [f"Error de Conexión: {str(e)[:30]}", "Reintenta con la varita 🪄"]
+        # SI VES ESTO EN LA APP, ES PORQUE FALLÓ LA CONEXIÓN O LA API KEY
+        return [
+            "⚠️ Error de conexión con la IA. Tocá la varita de nuevo.",
+            "Constelaciones: El lugar de los excluidos",
+            "Astrología: Tu luna y tus emociones",
+            "Memoria Celular: El cuerpo recuerda"
+        ]
         
 def buscar_imagenes_pixabay(query, api_key, formato="Post", page=1):
     try:
@@ -285,40 +302,40 @@ tab1, tab2 = st.tabs(["📝 Crear Contenido", "📅 Calendario"])
 with tab1:
     col_input, col_preview = st.columns([1, 1])
 
-with col_input:
+    with col_input:
         st.subheader("1. La Idea")
         
-        # Inicialización al cargar la página
+        # 1. AL ENTRAR: La IA piensa los 5 primeros temas
         if 'disparadores' not in st.session_state:
-            st.session_state.disparadores = generar_temas_disparadores(GEMINI_KEY)
-            st.session_state.iteracion = 0
+            with st.spinner("Despertando a la IA para Silvia..."):
+                st.session_state.disparadores = generar_temas_disparadores(GEMINI_KEY)
+                st.session_state.reset_key = random.randint(1, 99999)
 
         c_wand, c_sel = st.columns([1, 5])
         
         with c_wand:
-            # Botón de la varita
-            if st.button("🪄", key="btn_varita_pro"):
-                with st.spinner("🔄"):
+            # 2. AL TOCAR LA VARITA: La IA inventa 5 nuevos
+            if st.button("🪄", key="btn_magico_definitivo"):
+                with st.spinner("Generando nuevas ideas..."):
                     st.session_state.disparadores = generar_temas_disparadores(GEMINI_KEY)
-                    st.session_state.iteracion += 1
+                    st.session_state.reset_key = random.randint(1, 99999)
                     st.rerun()
         
         with c_sel:
-            # El selectbox usa una key dinámica para refrescarse
-            i_key = st.session_state.get('iteracion', 0)
+            r_key = st.session_state.get('reset_key', 0)
             tema_sugerido = st.selectbox(
                 "Inspiración del día:", 
-                options=["Escribir manual..."] + st.session_state.disparadores,
-                key=f"selector_final_{i_key}"
+                ["Escribir manual..."] + st.session_state.disparadores,
+                key=f"selector_{r_key}"
             )
 
-        # Determinar el valor que va al área de texto
-        if tema_sugerido == "Escribir manual..." or "Error" in tema_sugerido:
+        # Si elige el mensaje de error o manual, dejamos la caja vacía
+        if tema_sugerido == "Escribir manual..." or "⚠️ Error" in tema_sugerido:
             val_topic = ""
         else:
             val_topic = tema_sugerido
             
-        topic = st.text_area("¿De qué hablamos hoy?", value=val_topic)
+        topic = st.text_area("¿De qué hablamos hoy?", value=val_topic, placeholder="Ej: Lo que se hereda...")
         
         # --- AQUÍ ABAJO DEJÁ TUS SELECTORES DE TONO Y FORMATO TAL CUAL ESTÁN ---
         
@@ -476,22 +493,22 @@ with col_input:
             help="Si elegiste una opción de Gemini, esto se llena solo. Podés editarlo."
         )
 
-with col_preview:
-    st.subheader("📱 Vista Previa")
-    
-    # Lógica de imagen para Carrusel
-    es_carrusel = (post_format == "Carrusel (Ideas)" and st.session_state.carrusel)
-    if es_carrusel:
-        # Mostramos la imagen que Silvia eligió mirar con el ojito (o la primera por defecto)
-        img_a_mostrar = getattr(st.session_state, 'current_view_img', st.session_state.carrusel[0])
-        idx_actual = st.session_state.get('carrusel_index', 0) + 1
-        total = len(st.session_state.carrusel)
-        badge = f'<div style="position:absolute;top:10px;right:10px;background:rgba(0,0,0,0.7);color:white;padding:4px 10px;border-radius:15px;font-size:12px;font-weight:bold;z-index:10;">{idx_actual}/{total} 🖼️</div>'
-    else:
-        img_a_mostrar = img_url if img_url and "placeholder" not in img_url else "https://via.placeholder.com/400?text=Selecciona+una+imagen"
-        badge = ""
+    with col_preview:
+        st.subheader("📱 Vista Previa")
+        
+        # Lógica de imagen para Carrusel
+        es_carrusel = (post_format == "Carrusel (Ideas)" and st.session_state.carrusel)
+        if es_carrusel:
+            # Mostramos la imagen que Silvia eligió mirar con el ojito (o la primera por defecto)
+            img_a_mostrar = getattr(st.session_state, 'current_view_img', st.session_state.carrusel[0])
+            idx_actual = st.session_state.get('carrusel_index', 0) + 1
+            total = len(st.session_state.carrusel)
+            badge = f'<div style="position:absolute;top:10px;right:10px;background:rgba(0,0,0,0.7);color:white;padding:4px 10px;border-radius:15px;font-size:12px;font-weight:bold;z-index:10;">{idx_actual}/{total} 🖼️</div>'
+        else:
+            img_a_mostrar = img_url if img_url and "placeholder" not in img_url else "https://via.placeholder.com/400?text=Selecciona+una+imagen"
+            badge = ""
 
-    caption_br = final_caption.replace("\n", "<br>")
+        caption_br = final_caption.replace("\n", "<br>")
 
         # IMPORTANTE: Este bloque de abajo debe estar pegado al borde izquierdo
         html_design = f"""<div style="background:white;border:1px solid #dbdbdb;border-radius:12px;overflow:hidden;max-width:400px;margin:auto;font-family:sans-serif;text-align:left;">
@@ -540,47 +557,3 @@ with col_preview:
                         st.success("✨ ¡Publicado con éxito!")
                     else:
                         st.error(f"❌ Error de Meta: {respuesta}")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

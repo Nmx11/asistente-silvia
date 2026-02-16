@@ -284,12 +284,17 @@ with tab1:
         c_wand, c_sel = st.columns([1, 5])
         
         with c_wand:
-            # Al tocar la varita, generamos nuevos y cambiamos una 'semilla' para resetear el selectbox
             if st.button("🪄", help="Pedir ideas nuevas"):
                 with st.spinner("🪄"):
-                    nuevas_ideas = generar_temas_disparadores(GEMINI_KEY)
-                    st.session_state.disparadores = nuevas_ideas
-                    # Cambiamos una clave para que el selectbox se limpie
+                    # 1. Generamos 5 ideas nuevas
+                    nuevas = generar_temas_disparadores(GEMINI_KEY)
+                    
+                    # 2. Las sumamos a las que ya teníamos en memoria
+                    lista_actual = st.session_state.get('disparadores', [])
+                    # list(set(...)) sirve para que no haya temas duplicados
+                    st.session_state.disparadores = list(set(lista_actual + nuevas))
+                    
+                    # 3. Reseteamos el selector para que Silvia vea la lista crecida
                     st.session_state.reset_key = random.randint(1, 1000)
                     st.rerun()
         
@@ -526,6 +531,7 @@ with tab1:
                         st.success("✨ ¡Publicado con éxito!")
                     else:
                         st.error(f"❌ Error de Meta: {respuesta}")
+
 
 
 

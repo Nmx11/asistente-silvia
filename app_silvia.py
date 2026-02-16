@@ -9,11 +9,13 @@ import io
 
 # CARGA DE SECRETOS (Busca en la configuración de Streamlit Cloud)
 GEMINI_KEY = st.secrets.get("GEMINI_KEY", "")
+GROQ_KEY = st.secrets.get("GROQ_KEY", "")
 PIXABAY_KEY = st.secrets.get("PIXABAY_KEY", "")
 IMGBB_KEY = st.secrets.get("IMGBB_KEY", "")
 # Estos los dejamos listos para cuando se te desbloqueen
 META_TOKEN = st.secrets.get("META_ACCESS_TOKEN", "")
 IG_ID = st.secrets.get("IG_USER_ID", "")
+
 
 # 1. CONFIGURACIÓN E INTERFAZ
 st.set_page_config(page_title="Universo Vivencial | CM Suite", page_icon="🌿", layout="wide")
@@ -346,13 +348,14 @@ with tab1:
                 "Post de Feed", "Story", "Reel (Guion)", "Carrusel (Ideas)"
             ])
 
-        if st.button("✨ Generar 3 Ideas con Gemini", type="primary"):
-            # Ahora usamos GEMINI_KEY (la variable de arriba) en lugar de gemini_key (el input)
-            if not GEMINI_KEY:
-                st.error("No se encontró la clave en los Secrets.")
-            else:
-                with st.spinner("Reflexionando..."):
-                    st.session_state.opciones = generar_contenido_ia(topic, tone, post_format, GEMINI_KEY)
+        # --- BUSCÁ ESTA PARTE EN TU CÓDIGO ---
+        if st.button("✨ Generar 3 Ideas con Groq", type="primary"):
+        if not GROQ_KEY:
+            st.error("No se encontró la clave GROQ_KEY en los Secrets.")
+        else:
+            with st.spinner("Reflexionando con Groq..."):
+                # Cambiamos GEMINI_KEY por GROQ_KEY
+                st.session_state.opciones = generar_contenido_ia(topic, tone, post_format, GROQ_KEY)
 
         # TABLERO DE OPCIONES (Aquí es donde Silvia elige)
         if st.session_state.opciones:
@@ -552,6 +555,7 @@ with tab1:
                         st.success("✨ ¡Publicado con éxito!")
                     else:
                         st.error(f"❌ Error de Meta: {respuesta}")
+
 
 
 

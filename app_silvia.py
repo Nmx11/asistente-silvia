@@ -101,16 +101,17 @@ def generar_contenido_ia(tema, tono, formato, api_key):
         }}
         """
         
-        # 5. LLAMADA DIRECTA (Estructura 100% compatible con la API)
+        # 5. LLAMADA DIRECTA (Estructura 100% compatible con la API v1)
         payload = {
             "contents": [{
                 "parts": [{"text": prompt}]
             }],
-            "generationConfig": {  # <--- Cambiado: la 'C' es mayúscula y sin guion bajo
-                "responseMimeType": "application/json"
+            "generationConfig": {  # <--- SIN guión bajo y con C mayúscula
+                "responseMimeType": "application/json" # <--- CON M y T mayúsculas
             }
         }
 
+        # Enviamos el paquete
         response = requests.post(url, headers=headers, json=payload)
         res_json = response.json()
 
@@ -536,6 +537,7 @@ with tab1:
                         st.success("✨ ¡Publicado con éxito!")
                     else:
                         st.error(f"❌ Error de Meta: {respuesta}")
+
 
 
 

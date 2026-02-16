@@ -1,4 +1,3 @@
-import os
 import textwrap
 import streamlit as st
 import requests
@@ -38,74 +37,91 @@ if 'carrusel' not in st.session_state: st.session_state.carrusel = []
 
 # 3. LÓGICA DE IA (GEMINI REAL)
 def generar_contenido_ia(tema, tono, formato, api_key):
-    try:
-        # Reemplazá el modelo por esta versión específica:
-        model = genai.GenerativeModel('gemini-1.5-flash-preview-0514')
-        
-        # 1. Lógica de TONOS (Definición específica para cada estilo)
-        if tono == "Cuestionador":
-            instruccion_tono = "Usá preguntas retóricas potentes que inviten a la introspección. El objetivo es que el usuario se sienta interpelado."
-        elif tono == "Movilizador":
-            instruccion_tono = "Usá un tono energético y de liderazgo. El copy debe empujar a la acción inmediata o a un cambio de hábito."
-        elif tono == "Socrático":
-            instruccion_tono = "No des respuestas. Guía al usuario con 2 o 3 preguntas secuenciales para que descubra su propia verdad sistémica."
-        elif tono == "Empático":
-            instruccion_tono = "Priorizá la validación emocional. Usá frases como 'Te entiendo', 'Es válido sentir esto' y mucha calidez."
-        elif tono == "Inspirador":
-            instruccion_tono = "Enfocate en la superación y la luz al final del camino. Usá metáforas de crecimiento, renacimiento y esperanza."
-        elif tono == "Desafiante":
-            instruccion_tono = "Rompé mitos. Sé directo y un poco disruptivo con las creencias limitantes tradicionales de la terapia."
-        elif tono == "Didáctico":
-            instruccion_tono = "Explicá conceptos de terapia sistémica (órdenes del amor, jerarquías) como si fuera una clase clara y simple."
-        elif tono == "Cercano":
-            instruccion_tono = "Hablá como una amiga tomando un café. Usá un lenguaje menos técnico y más cotidiano, muy humano."
-        elif tono == "Profesional":
-            instruccion_tono = "Mantené un lenguaje técnico impecable, serio y con autoridad clínica. Transmití confianza y experiencia."
-        else:
-            instruccion_tono = f"Mantené un tono {tono}."
 
-        # 2. Lógica de FORMATOS (Stories vs Posts)
-        if formato == "Story":
-            instrucciones_formato = """
-            - Formato Story: Frases cortas y potentes.
-            - NO uses bloques de hashtags.
-            - Sticker: Recomendá uno de interacción (Encuesta, Pregunta, Deslizador).
-            """
-        else:
-            instrucciones_formato = """
-            - Formato Post/Reel: Copy detallado y cálido.
-            - Incluí un bloque de 5 hashtags relevantes al final.
-            - Sticker: Sugerí un elemento gráfico o GIF.
-            """
+    # 1. DIRECCIÓN DE GROQ (Plan B)
+    url = "https://api.groq.com/openai/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
 
-        # 3. Armamos el mensaje para la IA (Prompt unificado)
-        prompt = f"""
-        Actúa como experto en terapias holísticas para Silvia Baldi. 
-        Tema: '{tema}'
-        
-        INSTRUCCIONES DE ESTILO:
-        {instruccion_tono}
-        
-        REQUERIMIENTOS DE FORMATO:
-        {instrucciones_formato}
-        
-        Respondé ÚNICAMENTE con un objeto JSON:
-        {{
-          "opcion_1": {{"texto": "copy aquí", "sticker": "idea", "frase_placa": "FRASE CORTA PARA LA IMAGEN"}},
-          "opcion_2": {{"texto": "copy aquí", "sticker": "idea", "frase_placa": "FRASE CORTA PARA LA IMAGEN"}},
-          "opcion_3": {{"texto": "copy aquí", "sticker": "idea", "frase_placa": "FRASE CORTA PARA LA IMAGEN"}}
-        }}
+    # 2. TU LÓGICA DE TONOS (Intacta)
+    if tono == "Cuestionador":
+        instruccion_tono = "Usá preguntas retóricas potentes que inviten a la introspección. El objetivo es que el usuario se sienta interpelado."
+    elif tono == "Movilizador":
+        instruccion_tono = "Usá un tono energético y de liderazgo. El copy debe empujar a la acción inmediata o a un cambio de hábito."
+    elif tono == "Socrático":
+        instruccion_tono = "No des respuestas. Guía al usuario con 2 o 3 preguntas secuenciales para que descubra su propia verdad sistémica."
+    elif tono == "Empático":
+        instruccion_tono = "Priorizá la validación emocional. Usá frases como 'Te entiendo', 'Es válido sentir esto' y mucha calidez."
+    elif tono == "Inspirador":
+        instruccion_tono = "Enfocate en la superación y la luz al final del camino. Usá metáforas de crecimiento, renacimiento y esperanza."
+    elif tono == "Desafiante":
+        instruccion_tono = "Rompé mitos. Sé directo y un poco disruptivo con las creencias limitantes tradicionales de la terapia."
+    elif tono == "Didáctico":
+        instruccion_tono = "Explicá conceptos de terapia sistémica (órdenes del amor, jerarquías) como si fuera una clase clara y simple."
+    elif tono == "Cercano":
+        instruccion_tono = "Hablá como una amiga tomando un café. Usá un lenguaje menos técnico y más cotidiano, muy humano."
+    elif tono == "Profesional":
+        instruccion_tono = "Mantené un lenguaje técnico impecable, serio y con autoridad clínica. Transmití confianza y experiencia."
+    else:
+        instruccion_tono = f"Mantené un tono {tono}."
+
+    # 3. TU LÓGICA DE FORMATOS (Intacta)
+    if formato == "Story":
+        instrucciones_formato = """
+        - Formato Story: Frases cortas y potentes.
+        - NO uses bloques de hashtags.
+        - Sticker: Recomendá uno de interacción (Encuesta, Pregunta, Deslizador).
         """
+    else:
+        instrucciones_formato = """
+        - Formato Post/Reel: Copy detallado y cálido.
+        - Incluí un bloque de 5 hashtags relevantes al final.
+        - Sticker: Sugerí un elemento gráfico o GIF.
+        """
+
+    # 4. TU PROMPT ORIGINAL
+    prompt_text = f"""
+    Actúa como experto en terapias holísticas para Silvia Baldi. 
+    Tema: '{tema}'
+    
+    INSTRUCCIONES DE ESTILO:
+    {instruccion_tono}
+    
+    REQUERIMIENTOS DE FORMATO:
+    {instrucciones_formato}
+    
+    Respondé ÚNICAMENTE con un objeto JSON:
+    {{
+      "opcion_1": {{"texto": "copy aquí", "sticker": "idea", "frase_placa": "FRASE CORTA"}},
+      "opcion_2": {{"texto": "copy aquí", "sticker": "idea", "frase_placa": "FRASE CORTA"}},
+      "opcion_3": {{"texto": "copy aquí", "sticker": "idea", "frase_placa": "FRASE CORTA"}}
+    }}
+    """
+
+    # 5. LLAMADA A GROQ
+    payload = {
+        "model": "llama-3.3-70b-versatile", # El modelo más potente y rápido de Groq
+        "messages": [
+            {"role": "system", "content": "Sos un experto en JSON y terapias holísticas."},
+            {"role": "user", "content": prompt_text}
+        ],
+        "response_format": {"type": "json_object"}
+    }
+
+    try:
+        response = requests.post(url, headers=headers, json=payload)
+        if response.status_code != 200:
+            st.error(f"Error de Groq: {response.text}")
+            return None
         
-        # 4. Llamada a la IA
-        response = model.generate_content(
-            prompt,
-            generation_config={"response_mime_type": "application/json"}
-        )
-        return json.loads(response.text)
+        res_json = response.json()
+        contenido = res_json['choices'][0]['message']['content']
+        return json.loads(contenido)
         
     except Exception as e:
-        st.error(f"Error con Gemini: {e}")
+        st.error(f"Error de conexión: {e}")
         return None
 
 def generar_temas_disparadores(api_key):
@@ -536,6 +552,7 @@ with tab1:
                         st.success("✨ ¡Publicado con éxito!")
                     else:
                         st.error(f"❌ Error de Meta: {respuesta}")
+
 
 
 

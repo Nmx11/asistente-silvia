@@ -39,14 +39,16 @@ if 'carrusel' not in st.session_state: st.session_state.carrusel = []
 # 3. LÓGICA DE IA (GEMINI REAL)
 def generar_contenido_ia(tema, tono, formato, api_key):
     try:
-       # 1. Forzamos al sistema a nivel de entorno a usar la v1 (ESTABLE)
-        os.environ["GOOGLE_API_VERSION"] = "v1"
-        
-        # 2. Configuramos la API
+       # 1. Configuración ultra-limpia
         genai.configure(api_key=api_key)
         
-        # 3. Llamamos al modelo sin el prefijo 'models/' para que la v1 lo reconozca directo
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        # 2. Usamos el modelo 'gemini-pro'. Es el nombre universal.
+        # No le pongas 'flash', ni '1.5', ni nada extra.
+        model = genai.GenerativeModel('gemini-pro')
+        
+        # 3. Llamada directa
+        response = model.generate_content(f"Actúa como un experto...")
+        return response.text
         
         
         # 1. Lógica de TONOS (Definición específica para cada estilo)
@@ -544,6 +546,7 @@ with tab1:
                         st.success("✨ ¡Publicado con éxito!")
                     else:
                         st.error(f"❌ Error de Meta: {respuesta}")
+
 
 
 

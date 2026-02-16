@@ -39,10 +39,17 @@ if 'carrusel' not in st.session_state: st.session_state.carrusel = []
 def generar_contenido_ia(tema, tono, formato, api_key):
     try:
         # Forzamos la configuración para que use la versión estable (v1)
-        genai.configure(api_key=api_key)
-        
-        # Probá con el nombre completo oficial
-        model = genai.GenerativeModel('gemini-1.0-pro')
+        st.divider()
+st.subheader("🔍 Diagnóstico de Modelos")
+if st.button("Ver modelos disponibles"):
+    try:
+        genai.configure(api_key=GEMINI_KEY)
+        modelos = genai.list_models()
+        for m in modelos:
+            st.write(f"✅ **{m.name}**")
+            st.text(f"Métodos: {m.supported_generation_methods}")
+    except Exception as e:
+        st.error(f"Error al listar: {e}")
         
         # 1. Lógica de TONOS (Definición específica para cada estilo)
         if tono == "Cuestionador":
@@ -539,6 +546,7 @@ with tab1:
                         st.success("✨ ¡Publicado con éxito!")
                     else:
                         st.error(f"❌ Error de Meta: {respuesta}")
+
 
 
 

@@ -39,25 +39,8 @@ if 'carrusel' not in st.session_state: st.session_state.carrusel = []
 # 3. LÓGICA DE IA (GEMINI REAL)
 def generar_contenido_ia(tema, tono, formato, api_key):
     try:
-       # Cambiá esto:
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        
-        # Por esto (con el prefijo 'models/'):
-        model = genai.GenerativeModel('models/gemini-1.5-flash')
-        
-        # 3. El resto de tu prompt sigue igual...
-        prompt = f"""
-        Actúa como experto en terapias holísticas para Silvia Baldi. 
-        Tema: '{tema}'
-        ... (tu lógica de prompt)
-        """
-        
-        # 4. Llamada con configuración de JSON
-        response = model.generate_content(
-            prompt,
-            generation_config={"response_mime_type": "application/json"}
-        )
-        return json.loads(response.text)
+        # Reemplazá el modelo por esta versión específica:
+        model = genai.GenerativeModel('gemini-1.5-flash-preview-0514')
         
         # 1. Lógica de TONOS (Definición específica para cada estilo)
         if tono == "Cuestionador":
@@ -553,6 +536,7 @@ with tab1:
                         st.success("✨ ¡Publicado con éxito!")
                     else:
                         st.error(f"❌ Error de Meta: {respuesta}")
+
 
 
 

@@ -3,6 +3,8 @@ import streamlit as st
 import requests
 import json
 import google.generativeai as genai
+from PIL import Image, ImageDraw, ImageFont
+import io
 
 # CARGA DE SECRETOS (Busca en la configuración de Streamlit Cloud)
 GEMINI_KEY = st.secrets.get("GEMINI_KEY", "")
@@ -139,8 +141,16 @@ def post_to_instagram_api(caption, image_url, access_token, ig_user_id, imgbb_ke
     try:
         # PASO A: EL PUENTE IMGBB (Soluciona el error 9004)
         imgbb_url = "https://api.imgbb.com/1/upload"
-        imgbb_payload = {"key": imgbb_key, "image": image_url}
-        imgbb_res = requests.post(imgbb_url, data=imgbb_payload).json()
+        
+        # Ajuste para que acepte tanto URL como imagen con texto (bytes)
+        if isinstance(image_url, bytes):
+            # Si es la imagen con texto procesada por Python
+            files = {"image": image_url}
+            imgbb_res = requests.post(imgbb_url, params={"key": imgbb_key}, files=files).json()
+        else:
+            # Si es solo el link directo de Pixabay
+            imgbb_payload = {"key": imgbb_key, "image": image_url}
+            imgbb_res = requests.post(imgbb_url, data=imgbb_payload).json()
         
         if not imgbb_res.get("success"):
             return False, f"Error en puente ImgBB: {imgbb_res}"
@@ -174,6 +184,49 @@ def post_to_instagram_api(caption, image_url, access_token, ig_user_id, imgbb_ke
         return (True, r_pub.json()) if r_pub.status_code == 200 else (False, r_pub.json())
     except Exception as e:
         return False, str(e)
+
+def agregar_texto_a_imagen(url_imagen, texto):
+    # 1. Descargar la imagen
+    res = requests.get(url_imagen)
+    img = Image.open(io.BytesIO(res.content)).convert("RGB")
+    
+    # 2. Preparar el dibujo
+    draw = ImageDraw.Draw(img, "RGBA")
+    ancho, alto = img.size
+    
+    # 3. Configurar fuente (Ajustado para los servidores de Streamlit/Linux)
+    font_size = int(alto / 15)
+    try:
+        # Buscamos la fuente que viene por defecto en el servidor de Streamlit
+        font = ImageFont.truetype("/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf", font_size)
+    except:
+        font = ImageFont.load_default()
+
+    # 4. Dividir texto en líneas
+    lineas = textwrap.wrap(texto, width=25)
+    
+    # 5. Dibujar (Calculamos y_text para que el bloque quede centrado)
+    espaciado = 20
+    alto_total_texto = len(lineas) * (font_size + espaciado)
+    y_text = (alto - alto_total_texto) / 2 # <-- Esto centra el bloque verticalmente
+    
+    for linea in lineas:
+        bbox = draw.textbbox((0, 0), linea, font=font)
+        w_line = bbox[2] - bbox[0]
+        h_line = bbox[3] - bbox[1]
+        
+        # Fondo oscuro para legibilidad (un poco más opaco: 160)
+        draw.rectangle([((ancho - w_line) / 2 - 15, y_text - 5), 
+                        ((ancho + w_line) / 2 + 15, y_text + h_line + 5)], 
+                       fill=(0, 0, 0, 160))
+        
+        draw.text(((ancho - w_line) / 2, y_text), linea, font=font, fill="white")
+        y_text += h_line + espaciado
+
+    # 6. Guardar el resultado
+    img_byte_arr = io.BytesIO()
+    img.save(img_byte_arr, format='JPEG', quality=95) # Calidad alta
+    return img_byte_arr.getvalue()
 
 
 # 4. SIDEBAR (CONFIGURACIÓN)
@@ -342,6 +395,13 @@ with tab1:
         # Este es el link que finalmente se usa en la Preview
         img_url = st.text_input("Link seleccionado:", value=st.session_state.selected_img)
 
+        # --- AGREGAR ESTO AQUÍ ---
+        st.markdown("---")
+        st.subheader("🎨 Diseño Rápido")
+        texto_en_foto = st.text_area("Escribí lo que irá SOBRE la imagen:", 
+                                      placeholder="Ej: El orden precede al amor...",
+                                      help="Si lo dejás vacío, se publicará la imagen sola.")
+
     with col_preview:
         st.subheader("📱 Vista Previa")
         
@@ -379,17 +439,22 @@ with tab1:
 
         st.markdown(html_design, unsafe_allow_html=True)
         
-        st.divider()
         if st.button("🚀 Publicar en Instagram", type="primary"):
             if not META_TOKEN or not IG_ID or not IMGBB_KEY:
-                st.error("⚠️ Faltan credenciales (Meta o ImgBB) en los Secrets.")
+                st.error("⚠️ Faltan credenciales en los Secrets.")
             elif not img_url or "placeholder" in img_url:
-                st.error("⚠️ Necesitas seleccionar una imagen antes de publicar.")
+                st.error("⚠️ Seleccioná una imagen primero.")
             else:
-                with st.spinner("🔄 Procesando imagen y subiendo..."):
+                with st.spinner("🎨 Procesando imagen y subiendo..."):
+                    # Si Silvia escribió algo, procesamos la imagen
+                    imagen_final = img_url
+                    if texto_en_foto:
+                        # Esta función (agregar_texto_a_imagen) debemos definirla arriba
+                        imagen_final = agregar_texto_a_imagen(img_url, texto_en_foto)
+                    
                     exito, respuesta = post_to_instagram_api(
                         final_caption, 
-                        img_url, 
+                        imagen_final, # Enviamos la imagen procesada (o el link original)
                         META_TOKEN, 
                         IG_ID, 
                         IMGBB_KEY, 
@@ -401,6 +466,7 @@ with tab1:
                         st.success("✨ ¡Publicado con éxito!")
                     else:
                         st.error(f"❌ Error de Meta: {respuesta}")
+
 
 
 

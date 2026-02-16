@@ -115,26 +115,32 @@ def generar_temas_disparadores(api_key):
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel('gemini-1.5-flash')
         
-        # Generamos un número aleatorio para que la IA no se repita
-        suerte = random.randint(1, 9999)
+        # Elegimos un nicho al azar para que no se repita el ángulo
+        nichos = [
+            "Constelaciones Familiares y herencias sistémicas",
+            "Astrología y tránsitos planetarios",
+            "Flores de Bach y gestión emocional",
+            "Reseteo de memoria celular y traumas físicos",
+            "Astrogenealogía y secretos del árbol"
+        ]
+        nicho_elegido = random.choice(nichos)
         
         prompt = f"""
-        Sos un creativo experto en terapias holísticas para Silvia Baldi.
-        ID de sesión aleatoria: {suerte}
-        
-        Generá 5 temas para posts de Instagram que sean TOTALMENTE diferentes a los anteriores.
-        Buscá ángulos originales sobre: Constelaciones, Astrología, Memoria Celular o Flores de Bach.
-        
-        REGLA DE ORO: No uses frases trilladas. Buscá 'dolores' o curiosidades específicas.
-        Ejemplo: '¿Por qué atraigo jefes autoritarios?' o 'El síntoma físico como mensaje'.
-        
-        Responde ÚNICAMENTE un JSON: {{"temas": ["tema1", "tema2", "tema3", "tema4", "tema5"]}}
+        Sos un creativo para Silvia Baldi. 
+        Enfócate HOY exclusivamente en este nicho: {nicho_elegido}.
+        Generá 5 temas cortos (máx 5 palabras) para posts de Instagram.
+        Que sean preguntas o frases potentes que un paciente le diría a Silvia.
+        Responde ÚNICAMENTE un JSON: {{"temas": ["t1", "t2", "t3", "t4", "t5"]}}
         """
-        response = model.generate_content(prompt, generation_config={"response_mime_type": "application/json"})
+        
+        # Subimos la temperatura para máxima creatividad
+        response = model.generate_content(
+            prompt, 
+            generation_config=genai.types.GenerationConfig(temperature=1.0, response_mime_type="application/json")
+        )
         return json.loads(response.text).get("temas", [])
     except:
-        # Si algo falla, que al menos devuelva algo digno
-        return ["El orden en la pareja", "Secretos de familia", "La misión del alma"]
+        return ["Vínculos del alma", "Sanar el árbol", "Astrología sistémica"]
         
 def buscar_imagenes_pixabay(query, api_key, formato="Post", page=1):
     try:
@@ -284,18 +290,14 @@ with tab1:
         c_wand, c_sel = st.columns([1, 5])
         
         with c_wand:
-            if st.button("🪄", help="Pedir ideas nuevas"):
-                with st.spinner("🪄"):
-                    # 1. Generamos 5 ideas nuevas
+            if st.button("🪄", help="Cambiar todas las ideas"):
+                with st.spinner("🔄"):
+                    # REEMPLAZO TOTAL: No sumamos, pisamos lo anterior con lo nuevo
                     nuevas = generar_temas_disparadores(GEMINI_KEY)
+                    st.session_state.disparadores = nuevas
                     
-                    # 2. Las sumamos a las que ya teníamos en memoria
-                    lista_actual = st.session_state.get('disparadores', [])
-                    # list(set(...)) sirve para que no haya temas duplicados
-                    st.session_state.disparadores = list(set(lista_actual + nuevas))
-                    
-                    # 3. Reseteamos el selector para que Silvia vea la lista crecida
-                    st.session_state.reset_key = random.randint(1, 1000)
+                    # Generamos una clave nueva para que el selectbox se resetee visualmente
+                    st.session_state.reset_key = random.randint(1, 9999)
                     st.rerun()
         
         with c_sel:
@@ -531,6 +533,7 @@ with tab1:
                         st.success("✨ ¡Publicado con éxito!")
                     else:
                         st.error(f"❌ Error de Meta: {respuesta}")
+
 
 
 

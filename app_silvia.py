@@ -136,7 +136,7 @@ def buscar_imagenes_pixabay(query, api_key, formato="Post", page=1):
         
 def post_to_instagram_api(caption, image_url, access_token, ig_user_id, formato="Post"):
     try:
-        url_container = f"https://graph.facebook.com/v18.0/{ig_user_id}/media"
+        url_container = f"https://graph.facebook.com/v19.0/{ig_user_id}/media"
         
         # Configuramos el tipo de contenido
         payload = {
@@ -387,6 +387,7 @@ with tab1:
                         st.success("✨ ¡Publicado con éxito en @universo.vivencial!")
                     else:
                         st.error(f"❌ Error de Meta: {respuesta}")
+
 
 
 

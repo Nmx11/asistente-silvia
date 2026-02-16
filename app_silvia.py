@@ -1,3 +1,4 @@
+import os
 import textwrap
 import streamlit as st
 import requests
@@ -38,10 +39,13 @@ if 'carrusel' not in st.session_state: st.session_state.carrusel = []
 # 3. LÓGICA DE IA (GEMINI REAL)
 def generar_contenido_ia(tema, tono, formato, api_key):
     try:
-       # Forzamos la configuración y el método de envío
-        genai.configure(api_key=api_key, transport='grpc')
+       # 1. Forzamos al sistema a nivel de entorno a usar la v1 (ESTABLE)
+        os.environ["GOOGLE_API_VERSION"] = "v1"
         
-        # Usamos el nombre que Google pide explícitamente en su documentación estable
+        # 2. Configuramos la API
+        genai.configure(api_key=api_key)
+        
+        # 3. Llamamos al modelo sin el prefijo 'models/' para que la v1 lo reconozca directo
         model = genai.GenerativeModel('gemini-1.5-flash')
         
         
@@ -540,6 +544,7 @@ with tab1:
                         st.success("✨ ¡Publicado con éxito!")
                     else:
                         st.error(f"❌ Error de Meta: {respuesta}")
+
 
 
 

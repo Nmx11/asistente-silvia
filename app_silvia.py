@@ -113,50 +113,39 @@ def generar_contenido_ia(tema, tono, formato, api_key):
         return None
 
 def generar_temas_disparadores(api_key):
+    import random
+    import time
     try:
         genai.configure(api_key=api_key)
+        # Volvemos al modelo Flash que te funcionaba bien
         model = genai.GenerativeModel('gemini-1.5-flash')
         
-        # El tiempo exacto evita que la IA recicle respuestas anteriores
-        marca_tiempo = time.time()
+        # Le enviamos la hora exacta. Esto obliga a la IA a no repetir.
+        semilla = time.time()
         
         prompt = f"""
-        Actúa como Silvia Baldi, experta en Constelaciones y Biodecodificación.
-        Ignora este ID de control: {marca_tiempo}
-        
-        Genera 5 ideas ÚNICAS, PROFUNDAS y COMPLEJAS para posts de Instagram.
-        Reglas estrictas:
-        - Frases de entre 5 y 12 palabras.
-        - Sin números, sin viñetas, sin asteriscos, sin comillas.
-        - Solo la frase pura, una por línea.
-        - Temas: lealtades invisibles, sanación emocional, el árbol genealógico, síntomas físicos.
+        Sos Silvia Baldi, terapeuta sistémica. Generá 5 temas ÚNICOS para Instagram.
+        Referencia temporal: {semilla}
+        REGLAS:
+        - Frases largas y profundas (mínimo 6 palabras).
+        - Temas: Constelaciones, ancestros, duelos, abundancia.
+        - Prohibido repetir temas de "Vínculos", "Energía" o "Destino".
+        - Respondé solo con las 5 frases, una por línea.
         """
         
-        response = model.generate_content(prompt, generation_config={"temperature": 0.9})
+        response = model.generate_content(prompt, generation_config={"temperature": 1.0})
         
-        # Limpiamos el texto rigurosamente
-        lineas = response.text.split('\n')
-        temas_reales = [
-            linea.strip().replace('*', '').replace('-', '').replace('"', '') 
-            for linea in lineas if len(linea.strip()) > 10
-        ]
+        # Procesamos la respuesta
+        temas = [linea.strip() for linea in response.text.split('\n') if len(linea.strip()) > 5]
         
-        # Nos aseguramos de devolver exactamente 5
-        if len(temas_reales) >= 5:
-            return temas_reales[:5]
-        else:
-            raise ValueError("La IA devolvió un formato incorrecto.")
+        if not temas:
+            raise ValueError("La IA respondió pero el formato fue vacío.")
             
+        return temas[:5]
+
     except Exception as e:
-        # MODO PRO: No ocultamos el error. Lo mostramos para diagnosticar.
-        error_msg = str(e)[:40] # Capturamos los primeros 40 caracteres del error
-        return [
-            f"❌ ERROR DE IA: {error_msg}",
-            "Revisa tu GEMINI_KEY en Streamlit Secrets",
-            "Genera una API KEY nueva en Google",
-            "Verifica la conexión",
-            "Toca la varita para reintentar"
-        ]
+        # En lugar de temas repetidos, mostramos el error técnico real para arreglarlo
+        return [f"Error de Conexión: {str(e)[:30]}", "Reintenta con la varita 🪄"]
         
 def buscar_imagenes_pixabay(query, api_key, formato="Post", page=1):
     try:
@@ -301,38 +290,27 @@ with tab1:
         
         # 1. AL ENTRAR A LA APP (Genera ideas reales, no dice "cargando")
         if 'disparadores' not in st.session_state:
-            with st.spinner("Despertando a la Inteligencia Artificial..."):
-                st.session_state.disparadores = generar_temas_disparadores(GEMINI_KEY)
-                st.session_state.magic_key = 0
+        # Cargamos por primera vez apenas abre la app
+        st.session_state.disparadores = generar_temas_disparadores(GEMINI_KEY)
+        st.session_state.iteracion = 0
 
-        c_wand, c_sel = st.columns([1, 5])
-        
-        with c_wand:
-            # 2. AL TOCAR LA VARITA
-            if st.button("🪄", help="Generar 5 ideas completamente nuevas"):
-                with st.spinner("Creando nuevos conceptos..."):
-                    st.session_state.disparadores = generar_temas_disparadores(GEMINI_KEY)
-                    # Sumamos 1 a la key para obligar al selectbox a resetearse
-                    st.session_state.magic_key += 1
-                    st.rerun()
-        
-        with c_sel:
-            # 3. EL MENÚ DESPLEGABLE
-            m_key = st.session_state.get('magic_key', 0)
-            tema_sugerido = st.selectbox(
-                "Inspiración del día:", 
-                options=["Escribir manual..."] + st.session_state.disparadores,
-                key=f"selector_{m_key}"
-            )
-
-        # 4. PASAR EL TEXTO AL ÁREA DE ESCRITURA
-        # Si hay error o se elige manual, dejamos vacío para escribir
-        if tema_sugerido == "Escribir manual..." or "❌ ERROR" in tema_sugerido:
-            val_topic = ""
-        else:
-            val_topic = tema_sugerido
+    c_wand, c_sel = st.columns([1, 5])
+    
+    with c_wand:
+        if st.button("🪄"):
+            # Al tocar la varita, obligamos a generar temas nuevos
+            st.session_state.disparadores = generar_temas_disparadores(GEMINI_KEY)
+            # Cambiamos este número para que el menú de abajo se REINICIE
+            st.session_state.iteracion += 1
+            st.rerun()
             
-        topic = st.text_area("¿De qué hablamos hoy?", value=val_topic, placeholder="Ej: Lo que se calla se hereda...")
+    with c_sel:
+        # Usamos la iteración en la KEY para que Streamlit no "recicle" el menú viejo
+        tema_elegido = st.selectbox(
+            "Inspiración:", 
+            ["Escribir manual..."] + st.session_state.disparadores,
+            key=f"menu_ideas_{st.session_state.iteracion}"
+        )
         
         # --- AQUÍ ABAJO DEJÁ TUS SELECTORES DE TONO Y FORMATO TAL CUAL ESTÁN ---
         
@@ -554,6 +532,7 @@ with tab1:
                         st.success("✨ ¡Publicado con éxito!")
                     else:
                         st.error(f"❌ Error de Meta: {respuesta}")
+
 
 
 

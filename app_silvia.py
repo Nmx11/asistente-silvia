@@ -112,38 +112,44 @@ def generar_contenido_ia(tema, tono, formato, api_key):
 
 def generar_temas_disparadores(api_key):
     import random
-    import json
     try:
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel('gemini-1.5-flash')
         
-        # Temas que Silvia ama para guiar a la IA
-        nichos = ["Constelaciones Familiares", "Memoria Celular", "Astrogenealogía", "Flores de Bach"]
-        tema_guia = random.choice(nichos)
+        # Mezclamos temas para que Gemini no se repita
+        enfoques = ["Constelaciones", "Astrología", "Flores de Bach", "Memoria Celular", "Psicogenealogía"]
+        estilos = ["una pregunta provocadora", "un dolor profundo", "un secreto familiar", "una curiosidad técnica"]
         
+        # Creamos una "misión" única cada vez
+        mision = f"Hoy enfócate en {random.choice(enfoques)} y busca {random.choice(estilos)}."
+        random_id = random.randint(1, 100000)
+
         prompt = f"""
-        Sos un creativo experto para Silvia Baldi. Generá 5 temas cortos para Instagram sobre {tema_guia}.
-        Reglas:
-        - Que sean frases de impacto o dudas reales (ej: '¿Por qué repito historias?').
-        - Máximo 5 palabras.
-        - NO uses frases vacías como 'Energía' o 'Destino'.
-        - Respondé SOLAMENTE con el formato JSON: {{"temas": ["tema1", "tema2", "tema3", "tema4", "tema5"]}}
+        Sos el creativo de Silvia Baldi. ID_UNICO: {random_id}.
+        Misión: {mision}
+        Generá 5 temas cortos (máx 6 palabras) para Instagram. 
+        Importante: No uses frases hechas. Sé específico y humano.
+        
+        Escribí SOLAMENTE los 5 temas, uno por línea, sin números ni guiones.
         """
         
-        response = model.generate_content(prompt)
-        # Limpiamos la respuesta por si la IA agrega símbolos raros
-        texto_limpio = response.text.replace("```json", "").replace("```", "").strip()
-        data = json.loads(texto_limpio)
-        return data.get("temas", [])
+        response = model.generate_content(prompt, generation_config={"temperature": 0.9})
+        # Limpiamos la respuesta: quitamos líneas vacías y espacios
+        temas = [line.strip() for line in response.text.split('\n') if line.strip()][:5]
+        
+        if len(temas) < 3: # Si la IA devolvió basura, forzamos error para ir al plan B mejorado
+            raise Exception("Respuesta incompleta")
+            
+        return temas
     except Exception as e:
-        # Si falla la IA, estos son los temas de calidad que aparecerán
-        return [
-            "El lugar del padre en el éxito",
-            "Lo que no se dice se hereda",
-            "Sanar la relación con el dinero",
-            "Vínculos que liberan el alma",
-            "Tu síntoma es un maestro"
+        # Plan B de ALTA CALIDAD (Si la IA falla, al menos que Silvia tenga opciones pro)
+        pool_silvia = [
+            "El peso de los secretos familiares", "Sanar la relación con el dinero", 
+            "Tu síntoma es un mensaje del árbol", "El lugar de los excluidos",
+            "Nodos karmáticos y tu misión", "Flores que calman el alma",
+            "¿Por qué repetís la historia de tu abuela?", "El éxito tiene la cara de la madre"
         ]
+        return random.sample(pool_silvia, 5) # Devuelve 5 al azar del pozo de Silvia
         
 def buscar_imagenes_pixabay(query, api_key, formato="Post", page=1):
     try:
@@ -286,36 +292,33 @@ with tab1:
     with col_input:
         st.subheader("1. La Idea")
         
-        # Si la lista está vacía o tiene los temas de "error", intentamos cargar nuevos
-        if 'disparadores' not in st.session_state or len(st.session_state.disparadores) < 4:
-            st.session_state.disparadores = [
-                "El peso de los ancestros", 
-                "Sanar la abundancia", 
-                "Vínculos sistémicos",
-                "Órdenes del amor"
-            ]
+        # Si es la primera vez, cargamos 5 al azar del pozo pro
+        if 'disparadores' not in st.session_state:
+            st.session_state.disparadores = ["Cargando ideas... toque la varita 🪄"]
 
         c_wand, c_sel = st.columns([1, 5])
         
         with c_wand:
-            # Botón con una clave única para que no se trabe
-            if st.button("🪄", key="btn_varita"):
-                nuevos = generar_temas_disparadores(GEMINI_KEY)
-                st.session_state.disparadores = nuevos
-                st.session_state.reset_key = random.randint(1, 9999)
-                st.rerun()
+            if st.button("🪄", key="btn_magico"):
+                with st.spinner("Invocando ideas..."):
+                    nuevos = generar_temas_disparadores(GEMINI_KEY)
+                    st.session_state.disparadores = nuevos
+                    # Cambiamos la clave para forzar el refresco visual
+                    st.session_state.reset_key = random.randint(1, 99999)
+                    st.rerun()
         
         with c_sel:
-            r_key = st.session_state.get('reset_key', 0)
-            # Aquí es donde ocurre la magia del refresco
+            # Si no existe la clave, la creamos
+            if 'reset_key' not in st.session_state: st.session_state.reset_key = 0
+            
             tema_sugerido = st.selectbox(
                 "Inspiración del día:", 
                 ["Escribir manual..."] + st.session_state.disparadores,
-                key=f"select_ideas_{r_key}"
+                key=f"select_final_{st.session_state.reset_key}" # <--- ESTO ES VITAL
             )
 
-        val_topic = "" if tema_sugerido == "Escribir manual..." else tema_sugerido
-        topic = st.text_area("¿De qué hablamos hoy?", value=val_topic, placeholder="Ej: El lugar del padre...")
+        val_topic = "" if tema_sugerido == "Escribir manual..." or "Cargando" in tema_sugerido else tema_sugerido
+        topic = st.text_area("¿De qué hablamos hoy?", value=val_topic)
         # --- AQUÍ ABAJO DEJÁ TUS SELECTORES DE TONO Y FORMATO TAL CUAL ESTÁN ---
         
         c1, c2 = st.columns(2) # <--- ESTA LÍNEA ES LA QUE CREA 'c1' y 'c2'
@@ -536,6 +539,7 @@ with tab1:
                         st.success("✨ ¡Publicado con éxito!")
                     else:
                         st.error(f"❌ Error de Meta: {respuesta}")
+
 
 
 

@@ -102,9 +102,14 @@ def generar_contenido_ia(tema, tono, formato, api_key):
         """
 
         # 5. LLAMADA DIRECTA (Sin usar genai.GenerativeModel)
+        # 5. LLAMADA DIRECTA (Corregido para el "idioma" de la API)
         payload = {
-            "contents": [{"parts": [{"text": prompt}]}],
-            "generationConfig": {"response_mime_type": "application/json"}
+            "contents": [{
+                "parts": [{"text": prompt}]
+            }],
+            "generationConfig": {
+                "responseMimeType": "application/json" # <--- ¡Acá estaba el truco!
+            }
         }
 
         response = requests.post(url, headers=headers, json=payload)
@@ -532,5 +537,6 @@ with tab1:
                         st.success("✨ ¡Publicado con éxito!")
                     else:
                         st.error(f"❌ Error de Meta: {respuesta}")
+
 
 

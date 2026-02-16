@@ -265,7 +265,7 @@ with tab1:
             cols = st.columns(3)
             for idx, item in enumerate(st.session_state.search_results):
                 with cols[idx % 3]:
-                    url_img = item['webformatURL']
+                    url_img = item['largeImageURL']
                     st.image(url_img, use_container_width=True)
                     
                     # Botones debajo de cada imagen
@@ -387,6 +387,7 @@ with tab1:
                         st.success("✨ ¡Publicado con éxito en @universo.vivencial!")
                     else:
                         st.error(f"❌ Error de Meta: {respuesta}")
+
 
 
 

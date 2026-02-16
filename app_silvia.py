@@ -115,23 +115,26 @@ def generar_temas_disparadores(api_key):
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel('gemini-1.5-flash')
         
-        # Agregamos un número aleatorio al prompt para forzar a la IA a cambiar el chip
-        seed = random.randint(1, 1000)
+        # Generamos un número aleatorio para que la IA no se repita
+        suerte = random.randint(1, 9999)
         
         prompt = f"""
-        Sos un creativo de redes sociales para Silvia Baldi (Constelaciones, Holística).
-        ID de sesión aleatoria: {seed}
-        Generá 5 temas para posts totalmente DIFERENTES a los habituales. 
-        Evitá frases hechas. Buscá problemas reales, dudas existenciales o curiosidades 
-        sobre astrología y memoria celular. 
-        Ejemplos de estilo: '¿Por qué atraigo siempre lo mismo?', 'El peso de los secretos'.
+        Sos un creativo experto en terapias holísticas para Silvia Baldi.
+        ID de sesión aleatoria: {suerte}
+        
+        Generá 5 temas para posts de Instagram que sean TOTALMENTE diferentes a los anteriores.
+        Buscá ángulos originales sobre: Constelaciones, Astrología, Memoria Celular o Flores de Bach.
+        
+        REGLA DE ORO: No uses frases trilladas. Buscá 'dolores' o curiosidades específicas.
+        Ejemplo: '¿Por qué atraigo jefes autoritarios?' o 'El síntoma físico como mensaje'.
+        
         Responde ÚNICAMENTE un JSON: {{"temas": ["tema1", "tema2", "tema3", "tema4", "tema5"]}}
         """
         response = model.generate_content(prompt, generation_config={"response_mime_type": "application/json"})
-        nuevos_temas = json.loads(response.text).get("temas", [])
-        return nuevos_temas
-    except Exception as e:
-        return ["Sanar con mamá", "El lugar del padre", "Vínculos sistémicos"]
+        return json.loads(response.text).get("temas", [])
+    except:
+        # Si algo falla, que al menos devuelva algo digno
+        return ["El orden en la pareja", "Secretos de familia", "La misión del alma"]
         
 def buscar_imagenes_pixabay(query, api_key, formato="Post", page=1):
     try:
@@ -275,17 +278,34 @@ with tab1:
         st.subheader("1. La Idea")
         
         # Gestionamos la lista de disparadores en memoria
+       st.subheader("1. La Idea")
+        
+        # Inicializamos la lista si no existe
         if 'disparadores' not in st.session_state:
             st.session_state.disparadores = ["Sanar con mamá", "Órdenes del amor", "Vínculos sistémicos"]
 
         c_wand, c_sel = st.columns([1, 5])
+        
         with c_wand:
+            # Al tocar la varita, generamos nuevos y cambiamos una 'semilla' para resetear el selectbox
             if st.button("🪄", help="Pedir ideas nuevas"):
-                st.session_state.disparadores = generar_temas_disparadores(GEMINI_KEY)
-                st.rerun()
+                with st.spinner("🪄"):
+                    nuevas_ideas = generar_temas_disparadores(GEMINI_KEY)
+                    st.session_state.disparadores = nuevas_ideas
+                    # Cambiamos una clave para que el selectbox se limpie
+                    st.session_state.reset_key = random.randint(1, 1000)
+                    st.rerun()
+        
         with c_sel:
-            tema_sugerido = st.selectbox("Inspiración:", ["Escribir manual..."] + st.session_state.disparadores)
+            # Usamos un key dinámico para que el componente se refresque de verdad
+            key_select = st.session_state.get('reset_key', 0)
+            tema_sugerido = st.selectbox(
+                "Inspiración:", 
+                ["Escribir manual..."] + st.session_state.disparadores,
+                key=f"selector_temas_{key_select}"
+            )
 
+        # Si elige uno, lo pone en el área de texto. Si elige 'Escribir manual...', queda vacío.
         val_topic = "" if tema_sugerido == "Escribir manual..." else tema_sugerido
         topic = st.text_area("¿De qué hablamos hoy?", value=val_topic, placeholder="Ej: El lugar del padre...")
 
@@ -509,6 +529,7 @@ with tab1:
                         st.success("✨ ¡Publicado con éxito!")
                     else:
                         st.error(f"❌ Error de Meta: {respuesta}")
+
 
 
 

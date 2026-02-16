@@ -495,7 +495,7 @@ with tab1:
         html_design = f"""<div style="background:white;border:1px solid #dbdbdb;border-radius:12px;overflow:hidden;max-width:400px;margin:auto;font-family:sans-serif;text-align:left;">
 <div style="display:flex;align-items:center;padding:12px;">
 <div style="width:32px;height:32px;background:linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888);border-radius:50%;margin-right:10px;"></div>
-<b style="color:#262626;font-size:14px;">universo.vivencial</b>
+<b style="color:#262626;font-size:14px;">universovivencial</b>
 </div>
 <div style="position:relative;width:100%;background:#fafafa;">
 <img src="{img_a_mostrar}" style="width:100%;display:block;">
@@ -504,7 +504,7 @@ with tab1:
 <div style="padding:12px;">
 <div style="display:flex;gap:15px;margin-bottom:8px;font-size:20px;">❤️ 💬 🚀</div>
 <div style="color:#262626;font-size:14px;line-height:1.5;">
-<b style="color:#262626;">universo.vivencial</b> {caption_br}
+<b style="color:#262626;">universovivencial</b> {caption_br}
 </div>
 </div>
 </div>"""
@@ -538,4 +538,5 @@ with tab1:
                         st.success("✨ ¡Publicado con éxito!")
                     else:
                         st.error(f"❌ Error de Meta: {respuesta}")
+
 

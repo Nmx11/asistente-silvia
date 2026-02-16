@@ -285,32 +285,40 @@ tab1, tab2 = st.tabs(["📝 Crear Contenido", "📅 Calendario"])
 with tab1:
     col_input, col_preview = st.columns([1, 1])
 
-    with col_input:
+with col_input:
         st.subheader("1. La Idea")
         
-        # 1. AL ENTRAR A LA APP (Genera ideas reales, no dice "cargando")
+        # Inicialización al cargar la página
         if 'disparadores' not in st.session_state:
-        # Cargamos por primera vez apenas abre la app
-        st.session_state.disparadores = generar_temas_disparadores(GEMINI_KEY)
-        st.session_state.iteracion = 0
-
-    c_wand, c_sel = st.columns([1, 5])
-    
-    with c_wand:
-        if st.button("🪄"):
-            # Al tocar la varita, obligamos a generar temas nuevos
             st.session_state.disparadores = generar_temas_disparadores(GEMINI_KEY)
-            # Cambiamos este número para que el menú de abajo se REINICIE
-            st.session_state.iteracion += 1
-            st.rerun()
+            st.session_state.iteracion = 0
+
+        c_wand, c_sel = st.columns([1, 5])
+        
+        with c_wand:
+            # Botón de la varita
+            if st.button("🪄", key="btn_varita_pro"):
+                with st.spinner("🔄"):
+                    st.session_state.disparadores = generar_temas_disparadores(GEMINI_KEY)
+                    st.session_state.iteracion += 1
+                    st.rerun()
+        
+        with c_sel:
+            # El selectbox usa una key dinámica para refrescarse
+            i_key = st.session_state.get('iteracion', 0)
+            tema_sugerido = st.selectbox(
+                "Inspiración del día:", 
+                options=["Escribir manual..."] + st.session_state.disparadores,
+                key=f"selector_final_{i_key}"
+            )
+
+        # Determinar el valor que va al área de texto
+        if tema_sugerido == "Escribir manual..." or "Error" in tema_sugerido:
+            val_topic = ""
+        else:
+            val_topic = tema_sugerido
             
-    with c_sel:
-        # Usamos la iteración en la KEY para que Streamlit no "recicle" el menú viejo
-        tema_elegido = st.selectbox(
-            "Inspiración:", 
-            ["Escribir manual..."] + st.session_state.disparadores,
-            key=f"menu_ideas_{st.session_state.iteracion}"
-        )
+        topic = st.text_area("¿De qué hablamos hoy?", value=val_topic)
         
         # --- AQUÍ ABAJO DEJÁ TUS SELECTORES DE TONO Y FORMATO TAL CUAL ESTÁN ---
         
@@ -532,6 +540,7 @@ with tab1:
                         st.success("✨ ¡Publicado con éxito!")
                     else:
                         st.error(f"❌ Error de Meta: {respuesta}")
+
 
 
 

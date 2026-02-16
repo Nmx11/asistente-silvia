@@ -282,24 +282,16 @@ with tab1:
 
         # --- AQUÍ ABAJO DEJÁ TUS SELECTORES DE TONO Y FORMATO TAL CUAL ESTÁN ---
         
+        c1, c2 = st.columns(2) # <--- ESTA LÍNEA ES LA QUE CREA 'c1' y 'c2'
         with c1: 
             tone = st.selectbox("Tono", [
-                "Empático",
-                "Cuestionador",
-                "Movilizador",
-                "Socrático",
-                "Inspirador", 
-                "Desafiante", 
-                "Didáctico", 
-                "Cercano",
-                "Profesional", 
+                "Empático", "Cuestionador", "Movilizador", 
+                "Socrático", "Inspirador", "Desafiante", 
+                "Didáctico", "Cercano", "Profesional"
             ])
         with c2: 
             post_format = st.selectbox("Formato", [
-                "Post de Feed", 
-                "Story", 
-                "Reel (Guion)", 
-                "Carrusel (Ideas)"
+                "Post de Feed", "Story", "Reel (Guion)", "Carrusel (Ideas)"
             ])
 
         if st.button("✨ Generar 3 Ideas con Gemini", type="primary"):
@@ -508,6 +500,7 @@ with tab1:
                         st.success("✨ ¡Publicado con éxito!")
                     else:
                         st.error(f"❌ Error de Meta: {respuesta}")
+
 
 
 

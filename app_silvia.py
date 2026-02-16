@@ -46,8 +46,9 @@ def generar_contenido_ia(tema, tono, formato, api_key):
         
         # Tu prompt y lógica siguen igual...
         response = model.generate_content(f"Crea un post sobre {tema}...") 
-        return response.text
         st.write(f"Versión de la librería: {genai.__version__}")
+        return response.text
+        
         
         # 1. Lógica de TONOS (Definición específica para cada estilo)
         if tono == "Cuestionador":

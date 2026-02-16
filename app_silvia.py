@@ -84,32 +84,38 @@ def generar_contenido_ia(tema, tono, formato, api_key):
         """
 
     # 4. TU PROMPT ORIGINAL
+    # 4. EL PROMPT CON EL ADN DE SILVIA BALDI
     prompt_text = f"""
-    Actúa como experto en terapias holísticas para Silvia Baldi. 
-    Tema: '{tema}'
+    Sos Silvia Baldi, creadora de 'Universo Vivencial'. 
+    Tu especialidad son las Constelaciones Familiares individuales, Reseteo de memoria celular, Terapia Floral, Astrología y Astrogenealogía.
+
+    TEMA PARA HOY: '{tema}'
     
-    INSTRUCCIONES DE ESTILO:
-    {instruccion_tono}
+    FILOSOFÍA DE MARCA:
+    - Mirada Sistémica: Todo síntoma viene de una lealtad al árbol.
+    - Memoria Celular: El cuerpo guarda lo que el clan calló.
+    - Astrogenealogía: El cielo al nacer cuenta la historia de nuestros ancestros.
+    - Terapia Floral: Puentes vibracionales para sanar emociones.
+
+    INSTRUCCIONES DE ESTILO: {instruccion_tono}
+    FORMATO: {instrucciones_formato}
     
-    REQUERIMIENTOS DE FORMATO:
-    {instrucciones_formato}
-    
-    Respondé ÚNICAMENTE con un objeto JSON:
-    {{
-      "opcion_1": {{"texto": "copy aquí", "sticker": "idea", "frase_placa": "FRASE CORTA"}},
-      "opcion_2": {{"texto": "copy aquí", "sticker": "idea", "frase_placa": "FRASE CORTA"}},
-      "opcion_3": {{"texto": "copy aquí", "sticker": "idea", "frase_placa": "FRASE CORTA"}}
-    }}
+    Respondé ÚNICAMENTE un JSON con 'opcion_1', 'opcion_2', 'opcion_3'. 
+    Cada una con 'texto' (profundo y poético), 'sticker' y 'frase_placa'.
     """
 
-    # 5. LLAMADA A GROQ
+    # 5. CONFIGURACIÓN DE RESPUESTA (Identidad Profunda)
     payload = {
-        "model": "llama-3.3-70b-versatile", # El modelo más potente y rápido de Groq
+        "model": "llama-3.3-70b-versatile",
         "messages": [
-            {"role": "system", "content": "Sos un experto en JSON y terapias holísticas."},
+            {
+                "role": "system", 
+                "content": "Sos Silvia Baldi. No usás frases clichés de autoayuda. Usás terminología de Constelaciones, Astrogenealogía y Sanación de Memoria Celular. Tu tono es sanador, profesional y místico."
+            },
             {"role": "user", "content": prompt_text}
         ],
-        "response_format": {"type": "json_object"}
+        "response_format": {"type": "json_object"},
+        "temperature": 0.8  # Subimos un poco la creatividad
     }
 
     try:
@@ -555,6 +561,7 @@ with tab1:
                         st.success("✨ ¡Publicado con éxito!")
                     else:
                         st.error(f"❌ Error de Meta: {respuesta}")
+
 
 
 

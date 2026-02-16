@@ -117,51 +117,45 @@ def generar_temas_disparadores(api_key):
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel('gemini-1.5-flash')
         
-        # Elegimos una terapia al azar para enfocar a la IA
-        terapias = ["Constelaciones Familiares", "Memoria Celular", "Astrología", "Flores de Bach"]
-        foco = random.choice(terapias)
-        
-        # EL TRUCO DEFINITIVO: La hora exacta hace que el prompt sea 100% nuevo siempre
-        hora_unica = time.time() 
+        # El tiempo exacto evita que la IA recicle respuestas anteriores
+        marca_tiempo = time.time()
         
         prompt = f"""
-        Sos el asistente creativo de Silvia Baldi, terapeuta holística.
-        ID Único: {hora_unica}
-        Tema a explorar HOY: {foco}.
+        Actúa como Silvia Baldi, experta en Constelaciones y Biodecodificación.
+        Ignora este ID de control: {marca_tiempo}
         
-        Inventá 5 frases para títulos de Instagram. 
-        Reglas:
-        - Que sean reflexiones profundas o preguntas (ej: "¿A quién le sos leal con tu dolor?").
-        - No uses frases hechas.
-        - Respondé SOLO con las frases, una por línea. SIN números, SIN asteriscos.
+        Genera 5 ideas ÚNICAS, PROFUNDAS y COMPLEJAS para posts de Instagram.
+        Reglas estrictas:
+        - Frases de entre 5 y 12 palabras.
+        - Sin números, sin viñetas, sin asteriscos, sin comillas.
+        - Solo la frase pura, una por línea.
+        - Temas: lealtades invisibles, sanación emocional, el árbol genealógico, síntomas físicos.
         """
         
         response = model.generate_content(prompt, generation_config={"temperature": 0.9})
         
-        # Limpiamos la respuesta por si la IA le pone asteriscos o guiones de necia
+        # Limpiamos el texto rigurosamente
         lineas = response.text.split('\n')
-        temas_limpios = []
-        for linea in lineas:
-            # Sacamos asteriscos y guiones
-            limpia = linea.replace('*', '').replace('-', '').strip()
-            # Sacamos números si la IA los pone (ej: "1. Tema" -> "Tema")
-            limpia = re.sub(r'^\d+[\.\-\)]\s*', '', limpia)
-            
-            if len(limpia) > 5: # Solo guardamos si es una frase real
-                temas_limpios.append(limpia)
-                
-        if len(temas_limpios) < 3:
-            raise ValueError("Respuesta corta")
-            
-        return temas_limpios[:5]
+        temas_reales = [
+            linea.strip().replace('*', '').replace('-', '').replace('"', '') 
+            for linea in lineas if len(linea.strip()) > 10
+        ]
         
+        # Nos aseguramos de devolver exactamente 5
+        if len(temas_reales) >= 5:
+            return temas_reales[:5]
+        else:
+            raise ValueError("La IA devolvió un formato incorrecto.")
+            
     except Exception as e:
-        # SI VES ESTO EN LA APP, ES PORQUE FALLÓ LA CONEXIÓN O LA API KEY
+        # MODO PRO: No ocultamos el error. Lo mostramos para diagnosticar.
+        error_msg = str(e)[:40] # Capturamos los primeros 40 caracteres del error
         return [
-            "⚠️ Error de conexión con la IA. Tocá la varita de nuevo.",
-            "Constelaciones: El lugar de los excluidos",
-            "Astrología: Tu luna y tus emociones",
-            "Memoria Celular: El cuerpo recuerda"
+            f"❌ ERROR DE IA: {error_msg}",
+            "Revisa tu GEMINI_KEY en Streamlit Secrets",
+            "Genera una API KEY nueva en Google",
+            "Verifica la conexión",
+            "Toca la varita para reintentar"
         ]
         
 def buscar_imagenes_pixabay(query, api_key, formato="Post", page=1):
@@ -305,37 +299,40 @@ with tab1:
     with col_input:
         st.subheader("1. La Idea")
         
-        # 1. AL ENTRAR: La IA piensa los 5 primeros temas
+        # 1. AL ENTRAR A LA APP (Genera ideas reales, no dice "cargando")
         if 'disparadores' not in st.session_state:
-            with st.spinner("Despertando a la IA para Silvia..."):
+            with st.spinner("Despertando a la Inteligencia Artificial..."):
                 st.session_state.disparadores = generar_temas_disparadores(GEMINI_KEY)
-                st.session_state.reset_key = random.randint(1, 99999)
+                st.session_state.magic_key = 0
 
         c_wand, c_sel = st.columns([1, 5])
         
         with c_wand:
-            # 2. AL TOCAR LA VARITA: La IA inventa 5 nuevos
-            if st.button("🪄", key="btn_magico_definitivo"):
-                with st.spinner("Generando nuevas ideas..."):
+            # 2. AL TOCAR LA VARITA
+            if st.button("🪄", help="Generar 5 ideas completamente nuevas"):
+                with st.spinner("Creando nuevos conceptos..."):
                     st.session_state.disparadores = generar_temas_disparadores(GEMINI_KEY)
-                    st.session_state.reset_key = random.randint(1, 99999)
+                    # Sumamos 1 a la key para obligar al selectbox a resetearse
+                    st.session_state.magic_key += 1
                     st.rerun()
         
         with c_sel:
-            r_key = st.session_state.get('reset_key', 0)
+            # 3. EL MENÚ DESPLEGABLE
+            m_key = st.session_state.get('magic_key', 0)
             tema_sugerido = st.selectbox(
                 "Inspiración del día:", 
-                ["Escribir manual..."] + st.session_state.disparadores,
-                key=f"selector_{r_key}"
+                options=["Escribir manual..."] + st.session_state.disparadores,
+                key=f"selector_{m_key}"
             )
 
-        # Si elige el mensaje de error o manual, dejamos la caja vacía
-        if tema_sugerido == "Escribir manual..." or "⚠️ Error" in tema_sugerido:
+        # 4. PASAR EL TEXTO AL ÁREA DE ESCRITURA
+        # Si hay error o se elige manual, dejamos vacío para escribir
+        if tema_sugerido == "Escribir manual..." or "❌ ERROR" in tema_sugerido:
             val_topic = ""
         else:
             val_topic = tema_sugerido
             
-        topic = st.text_area("¿De qué hablamos hoy?", value=val_topic, placeholder="Ej: Lo que se hereda...")
+        topic = st.text_area("¿De qué hablamos hoy?", value=val_topic, placeholder="Ej: Lo que se calla se hereda...")
         
         # --- AQUÍ ABAJO DEJÁ TUS SELECTORES DE TONO Y FORMATO TAL CUAL ESTÁN ---
         
@@ -557,6 +554,7 @@ with tab1:
                         st.success("✨ ¡Publicado con éxito!")
                     else:
                         st.error(f"❌ Error de Meta: {respuesta}")
+
 
 
 

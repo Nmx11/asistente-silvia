@@ -476,22 +476,22 @@ with col_input:
             help="Si elegiste una opción de Gemini, esto se llena solo. Podés editarlo."
         )
 
-    with col_preview:
-        st.subheader("📱 Vista Previa")
-        
-        # Lógica de imagen para Carrusel
-        es_carrusel = (post_format == "Carrusel (Ideas)" and st.session_state.carrusel)
-        if es_carrusel:
-            # Mostramos la imagen que Silvia eligió mirar con el ojito (o la primera por defecto)
-            img_a_mostrar = getattr(st.session_state, 'current_view_img', st.session_state.carrusel[0])
-            idx_actual = st.session_state.get('carrusel_index', 0) + 1
-            total = len(st.session_state.carrusel)
-            badge = f'<div style="position:absolute;top:10px;right:10px;background:rgba(0,0,0,0.7);color:white;padding:4px 10px;border-radius:15px;font-size:12px;font-weight:bold;z-index:10;">{idx_actual}/{total} 🖼️</div>'
-        else:
-            img_a_mostrar = img_url if img_url and "placeholder" not in img_url else "https://via.placeholder.com/400?text=Selecciona+una+imagen"
-            badge = ""
+with col_preview:
+    st.subheader("📱 Vista Previa")
+    
+    # Lógica de imagen para Carrusel
+    es_carrusel = (post_format == "Carrusel (Ideas)" and st.session_state.carrusel)
+    if es_carrusel:
+        # Mostramos la imagen que Silvia eligió mirar con el ojito (o la primera por defecto)
+        img_a_mostrar = getattr(st.session_state, 'current_view_img', st.session_state.carrusel[0])
+        idx_actual = st.session_state.get('carrusel_index', 0) + 1
+        total = len(st.session_state.carrusel)
+        badge = f'<div style="position:absolute;top:10px;right:10px;background:rgba(0,0,0,0.7);color:white;padding:4px 10px;border-radius:15px;font-size:12px;font-weight:bold;z-index:10;">{idx_actual}/{total} 🖼️</div>'
+    else:
+        img_a_mostrar = img_url if img_url and "placeholder" not in img_url else "https://via.placeholder.com/400?text=Selecciona+una+imagen"
+        badge = ""
 
-        caption_br = final_caption.replace("\n", "<br>")
+    caption_br = final_caption.replace("\n", "<br>")
 
         # IMPORTANTE: Este bloque de abajo debe estar pegado al borde izquierdo
         html_design = f"""<div style="background:white;border:1px solid #dbdbdb;border-radius:12px;overflow:hidden;max-width:400px;margin:auto;font-family:sans-serif;text-align:left;">
@@ -540,6 +540,7 @@ with col_input:
                         st.success("✨ ¡Publicado con éxito!")
                     else:
                         st.error(f"❌ Error de Meta: {respuesta}")
+
 
 
 

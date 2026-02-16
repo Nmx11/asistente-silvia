@@ -113,43 +113,34 @@ def generar_contenido_ia(tema, tono, formato, api_key):
 def generar_temas_disparadores(api_key):
     import random
     try:
+        # Recuperamos lo que ya se mostró para no repetirlo
+        historial = st.session_state.get('historial_temas', [])[-15:] # Últimos 15
+        exclusiones = ", ".join(historial)
+
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel('gemini-1.5-flash')
         
-        # Mezclamos temas para que Gemini no se repita
-        enfoques = ["Constelaciones", "Astrología", "Flores de Bach", "Memoria Celular", "Psicogenealogía"]
-        estilos = ["una pregunta provocadora", "un dolor profundo", "un secreto familiar", "una curiosidad técnica"]
+        especialidades = ["Constelaciones", "Astrología", "Flores de Bach", "Memoria Celular"]
+        mision = random.choice(especialidades)
         
-        # Creamos una "misión" única cada vez
-        mision = f"Hoy enfócate en {random.choice(enfoques)} y busca {random.choice(estilos)}."
-        random_id = random.randint(1, 100000)
-
         prompt = f"""
-        Sos el creativo de Silvia Baldi. ID_UNICO: {random_id}.
-        Misión: {mision}
-        Generá 5 temas cortos (máx 6 palabras) para Instagram. 
-        Importante: No uses frases hechas. Sé específico y humano.
+        Sos el creativo de Silvia Baldi. 
+        Misión: Generá 5 temas para Instagram sobre {mision}.
         
-        Escribí SOLAMENTE los 5 temas, uno por línea, sin números ni guiones.
+        REGLA CRÍTICA: No podés usar nada parecido a estos temas previos: [{exclusiones}].
+        Buscá ángulos nuevos, preguntas incómodas o curiosidades de {mision}.
+        Escribí solo los 5 temas, uno por línea, sin números.
         """
         
-        response = model.generate_content(prompt, generation_config={"temperature": 0.9})
-        # Limpiamos la respuesta: quitamos líneas vacías y espacios
+        response = model.generate_content(prompt, generation_config={"temperature": 1.0})
         temas = [line.strip() for line in response.text.split('\n') if line.strip()][:5]
         
-        if len(temas) < 3: # Si la IA devolvió basura, forzamos error para ir al plan B mejorado
-            raise Exception("Respuesta incompleta")
-            
+        # Guardamos en el historial para la próxima vez
+        st.session_state['historial_temas'] = historial + temas
         return temas
-    except Exception as e:
-        # Plan B de ALTA CALIDAD (Si la IA falla, al menos que Silvia tenga opciones pro)
-        pool_silvia = [
-            "El peso de los secretos familiares", "Sanar la relación con el dinero", 
-            "Tu síntoma es un mensaje del árbol", "El lugar de los excluidos",
-            "Nodos karmáticos y tu misión", "Flores que calman el alma",
-            "¿Por qué repetís la historia de tu abuela?", "El éxito tiene la cara de la madre"
-        ]
-        return random.sample(pool_silvia, 5) # Devuelve 5 al azar del pozo de Silvia
+    except:
+        pool_emergencia = ["El lugar del padre", "Sanar con la madre", "Lealtades invisibles", "El éxito y el orden", "Tu síntoma te guía"]
+        return random.sample(pool_emergencia, 5)
         
 def buscar_imagenes_pixabay(query, api_key, formato="Post", page=1):
     try:
@@ -291,19 +282,24 @@ with tab1:
 
     with col_input:
         st.subheader("1. La Idea")
-        
-        # Si es la primera vez, cargamos 5 al azar del pozo pro
+
+        # --- 1. PREPARAMOS LA MEMORIA (Esto es lo nuevo) ---
+        if 'historial_temas' not in st.session_state:
+            st.session_state.historial_temas = []
+
+        # --- 2. CARGAMOS LOS DISPARADORES INICIALES ---
         if 'disparadores' not in st.session_state:
             st.session_state.disparadores = ["Cargando ideas... toque la varita 🪄"]
 
+        # --- 3. CREAMOS LAS COLUMNAS ---
         c_wand, c_sel = st.columns([1, 5])
         
         with c_wand:
             if st.button("🪄", key="btn_magico"):
                 with st.spinner("Invocando ideas..."):
+                    # Ahora la función podrá leer el historial que creamos arriba
                     nuevos = generar_temas_disparadores(GEMINI_KEY)
                     st.session_state.disparadores = nuevos
-                    # Cambiamos la clave para forzar el refresco visual
                     st.session_state.reset_key = random.randint(1, 99999)
                     st.rerun()
         
@@ -539,6 +535,7 @@ with tab1:
                         st.success("✨ ¡Publicado con éxito!")
                     else:
                         st.error(f"❌ Error de Meta: {respuesta}")
+
 
 
 

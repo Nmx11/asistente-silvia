@@ -39,9 +39,8 @@ if 'carrusel' not in st.session_state: st.session_state.carrusel = []
 # 3. LÓGICA DE IA (GEMINI REAL)
 def generar_contenido_ia(tema, tono, formato, api_key):
     try:
-       genai.configure(api_key=api_key)
-       model = genai.GenerativeModel('gemini-1.5-flash')
-        
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel('gemini-1.5-flash')
         
         # 1. Lógica de TONOS (Definición específica para cada estilo)
         if tono == "Cuestionador":
@@ -81,7 +80,7 @@ def generar_contenido_ia(tema, tono, formato, api_key):
 
         # 3. Armamos el mensaje para la IA (Prompt unificado)
         prompt = f"""
-        Actúa como experto en terapias holísticas para Silvia Baldi. 
+        Actúa como experto en terapias holísticas para Silvia Baldi. 
         Tema: '{tema}'
         
         INSTRUCCIONES DE ESTILO:
@@ -106,7 +105,6 @@ def generar_contenido_ia(tema, tono, formato, api_key):
         return json.loads(response.text)
         
     except Exception as e:
-        # Simplificamos el error porque ya sabemos que tu clave y modelo funcionan
         st.error(f"Error con Gemini: {e}")
         return None
 
@@ -538,6 +536,7 @@ with tab1:
                         st.success("✨ ¡Publicado con éxito!")
                     else:
                         st.error(f"❌ Error de Meta: {respuesta}")
+
 
 
 

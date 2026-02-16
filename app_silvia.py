@@ -39,8 +39,31 @@ if 'carrusel' not in st.session_state: st.session_state.carrusel = []
 # 3. LÓGICA DE IA (GEMINI REAL)
 def generar_contenido_ia(tema, tono, formato, api_key):
     try:
+        def generar_temas_disparadores(api_key):
+    import random
+    import requests
+    try:
+        # Dirección directa a Google
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
         headers = {'Content-Type': 'application/json'}
+        
+        # Tu lógica de Silvia
+        estilos = ["Constelaciones Familiares", "Astrogenealogía", "Memoria Celular", "Flores de Bach"]
+        enfoque = random.choice(estilos)
+        
+        prompt = f"Sos un experto en terapias holísticas. Generá 5 temas cortos para Instagram sobre {enfoque}. Sin números, una frase por línea."
+        payload = {"contents": [{"parts": [{"text": prompt}]}]}
+        
+        # Llamada directa
+        response = requests.post(url, headers=headers, json=payload)
+        res_json = response.json()
+        
+        # Extraer texto
+        texto = res_json['candidates'][0]['content']['parts'][0]['text']
+        return [line.strip() for line in texto.split('\n') if len(line.strip()) > 5][:5]
+    except:
+        # Si falla Google, usamos tu sabiduría guardada
+        return ["El éxito tiene la cara de la madre", "Lo que se excluye se repite", "Tu síntoma es una puerta", "Lealtades invisibles", "El orden en el amor"]
         
         # 1. Lógica de TONOS (Definición específica para cada estilo)
         if tono == "Cuestionador":
@@ -536,5 +559,6 @@ with tab1:
                         st.success("✨ ¡Publicado con éxito!")
                     else:
                         st.error(f"❌ Error de Meta: {respuesta}")
+
 
 

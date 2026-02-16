@@ -115,32 +115,36 @@ def generar_temas_disparadores(api_key):
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel('gemini-1.5-flash')
         
-        # Elegimos un nicho al azar para que no se repita el ángulo
-        nichos = [
-            "Constelaciones Familiares y herencias sistémicas",
-            "Astrología y tránsitos planetarios",
-            "Flores de Bach y gestión emocional",
-            "Reseteo de memoria celular y traumas físicos",
-            "Astrogenealogía y secretos del árbol"
+        # Lista de especialidades para forzar a la IA a rotar
+        especialidades = [
+            "Constelaciones Familiares (órdenes del amor, excluidos)",
+            "Reseteo de Memoria Celular (traumas en el cuerpo, miedos)",
+            "Astrología y Astrogenealogía (nodos, lealtades del árbol)",
+            "Terapia Floral (emociones, flores de Bach)",
+            "Terapias Holísticas (energía, equilibrio)"
         ]
-        nicho_elegido = random.choice(nichos)
         
+        # Elegimos una al azar y un "estilo" de post
+        mision = random.choice(especialidades)
+        estilo = random.choice(["un dolor o problema común", "una curiosidad sorprendente", "una pregunta movilizadora"])
+
         prompt = f"""
-        Sos un creativo para Silvia Baldi. 
-        Enfócate HOY exclusivamente en este nicho: {nicho_elegido}.
-        Generá 5 temas cortos (máx 5 palabras) para posts de Instagram.
-        Que sean preguntas o frases potentes que un paciente le diría a Silvia.
+        Sos el creativo de Silvia Baldi. Silvia es experta en {mision}.
+        Generá 5 temas para Instagram sobre {mision} enfocados en {estilo}.
+        REGLAS:
+        - Máximo 5 palabras por tema.
+        - Sé creativo, no repitas 'Sanar con mamá'. 
+        - Que suenen como algo que Silvia diría en una sesión.
         Responde ÚNICAMENTE un JSON: {{"temas": ["t1", "t2", "t3", "t4", "t5"]}}
         """
         
-        # Subimos la temperatura para máxima creatividad
         response = model.generate_content(
             prompt, 
             generation_config=genai.types.GenerationConfig(temperature=1.0, response_mime_type="application/json")
         )
         return json.loads(response.text).get("temas", [])
     except:
-        return ["Vínculos del alma", "Sanar el árbol", "Astrología sistémica"]
+        return ["Vínculos del alma", "El lenguaje del cuerpo", "Astrología Sistémica"]
         
 def buscar_imagenes_pixabay(query, api_key, formato="Post", page=1):
     try:
@@ -280,38 +284,42 @@ tab1, tab2 = st.tabs(["📝 Crear Contenido", "📅 Calendario"])
 with tab1:
     col_input, col_preview = st.columns([1, 1])
 
-    with col_input:
-        st.subheader("1. La Idea")
+    st.subheader("1. La Idea")
         
-        # Inicializamos la lista si no existe
+        # --- NUEVO: ESTO GARANTIZA QUE EL INICIO SEA ALEATORIO ---
         if 'disparadores' not in st.session_state:
-            st.session_state.disparadores = ["Sanar con mamá", "Órdenes del amor", "Vínculos sistémicos"]
+            # En lugar de una lista fija, llamamos a la función la primera vez
+            # Si no hay key aún, ponemos unos genéricos pero variados
+            st.session_state.disparadores = [
+                "El peso de lo no dicho", 
+                "Tu síntoma te habla", 
+                "Lealtades al árbol"
+            ]
 
         c_wand, c_sel = st.columns([1, 5])
         
         with c_wand:
-            if st.button("🪄", help="Cambiar todas las ideas"):
-                with st.spinner("🔄"):
-                    # REEMPLAZO TOTAL: No sumamos, pisamos lo anterior con lo nuevo
+            # El botón de la varita ahora es un "Barajar"
+            if st.button("🪄", help="¡Nuevas ideas ahora!"):
+                with st.spinner("Cambiando de tema..."):
+                    # Forzamos la generación de temas totalmente nuevos
                     nuevas = generar_temas_disparadores(GEMINI_KEY)
                     st.session_state.disparadores = nuevas
-                    
-                    # Generamos una clave nueva para que el selectbox se resetee visualmente
+                    # Cambiamos la clave para que el selectbox se entere del cambio
                     st.session_state.reset_key = random.randint(1, 9999)
                     st.rerun()
         
         with c_sel:
-            # Usamos un key dinámico para que el componente se refresque de verdad
-            key_select = st.session_state.get('reset_key', 0)
+            # El key dinámico es lo que mata el bucle de repetición
+            r_key = st.session_state.get('reset_key', 0)
             tema_sugerido = st.selectbox(
-                "Inspiración:", 
+                "Inspiración del día:", 
                 ["Escribir manual..."] + st.session_state.disparadores,
-                key=f"selector_temas_{key_select}"
+                key=f"selectbox_{r_key}"
             )
 
-        # Si elige uno, lo pone en el área de texto. Si elige 'Escribir manual...', queda vacío.
         val_topic = "" if tema_sugerido == "Escribir manual..." else tema_sugerido
-        topic = st.text_area("¿De qué hablamos hoy?", value=val_topic, placeholder="Ej: El lugar del padre...")
+        topic = st.text_area("¿De qué hablamos hoy?", value=val_topic, placeholder="Ej: Lo que se excluye...")
 
         # --- AQUÍ ABAJO DEJÁ TUS SELECTORES DE TONO Y FORMATO TAL CUAL ESTÁN ---
         
@@ -533,6 +541,7 @@ with tab1:
                         st.success("✨ ¡Publicado con éxito!")
                     else:
                         st.error(f"❌ Error de Meta: {respuesta}")
+
 
 
 

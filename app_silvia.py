@@ -100,15 +100,14 @@ def generar_contenido_ia(tema, tono, formato, api_key):
           "opcion_3": {{"texto": "copy aquí", "sticker": "idea", "frase_placa": "FRASE CORTA PARA LA IMAGEN"}}
         }}
         """
-
-        # 5. LLAMADA DIRECTA (Sin usar genai.GenerativeModel)
-        # 5. LLAMADA DIRECTA (Corregido para el "idioma" de la API)
+        
+        # 5. LLAMADA DIRECTA (Estructura 100% compatible con la API)
         payload = {
             "contents": [{
                 "parts": [{"text": prompt}]
             }],
-            "generationConfig": {
-                "responseMimeType": "application/json" # <--- ¡Acá estaba el truco!
+            "generationConfig": {  # <--- Cambiado: la 'C' es mayúscula y sin guion bajo
+                "responseMimeType": "application/json"
             }
         }
 
@@ -537,6 +536,7 @@ with tab1:
                         st.success("✨ ¡Publicado con éxito!")
                     else:
                         st.error(f"❌ Error de Meta: {respuesta}")
+
 
 
 

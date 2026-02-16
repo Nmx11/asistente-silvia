@@ -3,6 +3,7 @@ import streamlit as st
 import requests
 import json
 import google.generativeai as genai
+import random
 from PIL import Image, ImageDraw, ImageFont
 import io
 
@@ -113,16 +114,24 @@ def generar_temas_disparadores(api_key):
     try:
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel('gemini-1.5-flash')
-        prompt = """
-        Eres un experto en contenido para Silvia Baldi. Ella hace: Constelaciones Familiares, Reseteo de memoria celular, 
-        terapia floral, astrología y astrogenealogía.
-        Genera una lista de 5 temas cortos (máx 5 palabras) para posts de Instagram. 
-        Deben ser variados y profundos. Responde ÚNICAMENTE un JSON: {"temas": ["tema1", "tema2", "tema3", "tema4", "tema5"]}
+        
+        # Agregamos un número aleatorio al prompt para forzar a la IA a cambiar el chip
+        seed = random.randint(1, 1000)
+        
+        prompt = f"""
+        Sos un creativo de redes sociales para Silvia Baldi (Constelaciones, Holística).
+        ID de sesión aleatoria: {seed}
+        Generá 5 temas para posts totalmente DIFERENTES a los habituales. 
+        Evitá frases hechas. Buscá problemas reales, dudas existenciales o curiosidades 
+        sobre astrología y memoria celular. 
+        Ejemplos de estilo: '¿Por qué atraigo siempre lo mismo?', 'El peso de los secretos'.
+        Responde ÚNICAMENTE un JSON: {{"temas": ["tema1", "tema2", "tema3", "tema4", "tema5"]}}
         """
         response = model.generate_content(prompt, generation_config={"response_mime_type": "application/json"})
-        return json.loads(response.text).get("temas", [])
-    except:
-        return ["El peso de los ancestros", "Sanar la abundancia", "Vínculos sistémicos"]
+        nuevos_temas = json.loads(response.text).get("temas", [])
+        return nuevos_temas
+    except Exception as e:
+        return ["Sanar con mamá", "El lugar del padre", "Vínculos sistémicos"]
         
 def buscar_imagenes_pixabay(query, api_key, formato="Post", page=1):
     try:
@@ -500,6 +509,7 @@ with tab1:
                         st.success("✨ ¡Publicado con éxito!")
                     else:
                         st.error(f"❌ Error de Meta: {respuesta}")
+
 
 
 

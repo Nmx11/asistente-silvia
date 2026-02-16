@@ -39,25 +39,8 @@ if 'carrusel' not in st.session_state: st.session_state.carrusel = []
 # 3. LÓGICA DE IA (GEMINI REAL)
 def generar_contenido_ia(tema, tono, formato, api_key):
     try:
-       # Cambiá esto:
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        
-        # Por esto (con el prefijo 'models/'):
-        model = genai.GenerativeModel('models/gemini-1.5-flash')
-        
-        # 3. El resto de tu prompt sigue igual...
-        prompt = f"""
-        Actúa como experto en terapias holísticas para Silvia Baldi. 
-        Tema: '{tema}'
-        ... (tu lógica de prompt)
-        """
-        
-        # 4. Llamada con configuración de JSON
-        response = model.generate_content(
-            prompt,
-            generation_config={"response_mime_type": "application/json"}
-        )
-        return json.loads(response.text)
+       url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+       headers = {'Content-Type': 'application/json'}
         
         # 1. Lógica de TONOS (Definición específica para cada estilo)
         if tono == "Cuestionador":
@@ -126,43 +109,75 @@ def generar_contenido_ia(tema, tono, formato, api_key):
         return None
 
 def generar_temas_disparadores(api_key):
-    import random
+    # 3. LÓGICA DE IA (CONEXIÓN DIRECTA PARA EVITAR 404)
+def generar_contenido_ia(tema, tono, formato, api_key):
+    import requests
+    import json
+    
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+    headers = {'Content-Type': 'application/json'}
+
+    # 1. Lógica de TONOS
+    tonos_dict = {
+        "Cuestionador": "Usá preguntas retóricas potentes que inviten a la introspección.",
+        "Movilizador": "Usá un tono energético y de liderazgo. Empujá a la acción.",
+        "Socrático": "Guía al usuario con preguntas secuenciales para que descubra su verdad.",
+        "Empático": "Priorizá la validación emocional y la calidez.",
+        "Inspirador": "Enfocada en el crecimiento, renacimiento y esperanza.",
+        "Desafiante": "Rompé mitos. Sé disruptiva con las creencias limitantes.",
+        "Didáctico": "Explicá conceptos sistémicos como una clase clara.",
+        "Cercano": "Hablá como una amiga tomando un café.",
+        "Profesional": "Lenguaje técnico impecable y autoridad clínica."
+    }
+    instruccion_tono = tonos_dict.get(tono, f"Mantené un tono {tono}.")
+
+    # 2. Lógica de FORMATOS
+    if formato == "Story":
+        instrucciones_formato = "- Formato Story: Frases cortas. Sin hashtags. Sticker de interacción."
+    else:
+        instrucciones_formato = "- Formato Post: Copy detallado. Incluí 5 hashtags al final."
+
+    # 3. Prompt
+    prompt = f"""
+    Actúa como Silvia Baldi. Tema: '{tema}'. Estilo: {instruccion_tono}. {instrucciones_formato}
+    Responde ÚNICAMENTE un JSON con este formato:
+    {{
+      "opcion_1": {{"texto": "...", "sticker": "...", "frase_placa": "..."}},
+      "opcion_2": {{"texto": "...", "sticker": "...", "frase_placa": "..."}},
+      "opcion_3": {{"texto": "...", "sticker": "...", "frase_placa": "..."}}
+    }}
+    """
+
+    payload = {"contents": [{"parts": [{"text": prompt}]}]}
+
     try:
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        response = requests.post(url, headers=headers, json=payload)
+        res_json = response.json()
+        texto_sucio = res_json['candidates'][0]['content']['parts'][0]['text']
+        texto_limpio = texto_sucio.replace("```json", "").replace("```", "").strip()
+        return json.loads(texto_limpio)
+    except Exception as e:
+        st.error(f"Error con Gemini: {e}")
+        return None
+
+def generar_temas_disparadores(api_key):
+    try:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+        headers = {'Content-Type': 'application/json'}
         
-        # Le damos un "toque" distinto cada vez para que no repita
         estilos = ["Constelaciones Familiares", "Astrogenealogía", "Memoria Celular", "Flores de Bach"]
         enfoque = random.choice(estilos)
-        semilla = random.randint(1, 9999)
-
-        prompt = f"""
-        Sos un experto en terapias holísticas. Generá 5 temas para Instagram sobre {enfoque}.
-        ID Aleatorio: {semilla}.
         
-        REGLAS:
-        - Frases profundas y complejas (ej: 'El síntoma como mensaje del árbol').
-        - Máximo 7 palabras. 
-        - Que resuenen con el alma de quien lee.
-        - NO uses números ni guiones. Escribí una frase por línea.
-        """
+        prompt = f"Sos un experto en terapias holísticas. Generá 5 temas cortos para Instagram sobre {enfoque}. Sin números, una frase por línea."
+        payload = {"contents": [{"parts": [{"text": prompt}]}]}
         
-        response = model.generate_content(prompt, generation_config={"temperature": 1.0})
-        temas = [line.strip() for line in response.text.split('\n') if len(line.strip()) > 5][:5]
+        response = requests.post(url, headers=headers, json=payload)
+        res_json = response.json()
         
-        if len(temas) < 3: raise Exception("IA perezosa")
-        return temas
+        texto = res_json['candidates'][0]['content']['parts'][0]['text']
+        return [line.strip() for line in texto.split('\n') if len(line.strip()) > 5][:5]
     except:
-        # Si la IA falla, este es el pozo de sabiduría de Silvia (siempre complejo)
-        sabiduria_silvia = [
-            "El éxito tiene la cara de la madre",
-            "Lo que se excluye se repite en el árbol",
-            "Tu síntoma es una puerta a la sanación",
-            "Lealtades invisibles que frenan tu vida",
-            "El orden en el amor para que fluya la vida",
-            "Sanar el pasado para habitar el presente"
-        ]
-        return random.sample(sabiduria_silvia, 5)
+        return ["El éxito tiene la cara de la madre", "Lo que se excluye se repite", "Tu síntoma es una puerta", "Lealtades invisibles", "El orden en el amor"]
         
 def buscar_imagenes_pixabay(query, api_key, formato="Post", page=1):
     try:
@@ -553,3 +568,4 @@ with tab1:
                         st.success("✨ ¡Publicado con éxito!")
                     else:
                         st.error(f"❌ Error de Meta: {respuesta}")
+

@@ -41,8 +41,8 @@ def generar_contenido_ia(tema, tono, formato, api_key):
         # Forzamos la configuración para que use la versión estable (v1)
         genai.configure(api_key=api_key)
         
-        # Cambio aquí: Especificamos el modelo de forma completa
-        model = genai.GenerativeModel(model_name='gemini-1.5-flash')
+        # Probá con el nombre completo oficial
+        model = genai.GenerativeModel('models/gemini-1.5-flash')
         
         # 1. Lógica de TONOS (Definición específica para cada estilo)
         if tono == "Cuestionador":
@@ -539,6 +539,7 @@ with tab1:
                         st.success("✨ ¡Publicado con éxito!")
                     else:
                         st.error(f"❌ Error de Meta: {respuesta}")
+
 
 
 

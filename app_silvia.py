@@ -277,9 +277,6 @@ with tab1:
     with col_input:
         st.subheader("1. La Idea")
         
-        # Gestionamos la lista de disparadores en memoria
-       st.subheader("1. La Idea")
-        
         # Inicializamos la lista si no existe
         if 'disparadores' not in st.session_state:
             st.session_state.disparadores = ["Sanar con mamá", "Órdenes del amor", "Vínculos sistémicos"]
@@ -529,6 +526,7 @@ with tab1:
                         st.success("✨ ¡Publicado con éxito!")
                     else:
                         st.error(f"❌ Error de Meta: {respuesta}")
+
 
 
 

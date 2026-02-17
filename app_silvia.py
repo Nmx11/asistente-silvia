@@ -222,7 +222,7 @@ def post_to_instagram_api(caption, image_url, access_token, ig_user_id, imgbb_ke
     except Exception as e:
         return False, str(e)
 
-def agregar_texto_a_imagen(url_imagen, texto, posicion="Centro", color_hex="#000000", tamano_prop=12, opacidad=180):
+def agregar_texto_a_imagen(url_imagen, texto, posicion="Centro", color_hex="#000000", tamano_prop=15, opacidad=180):
     try:
         res = requests.get(url_imagen)
         img = Image.open(io.BytesIO(res.content)).convert("RGBA")
@@ -230,19 +230,22 @@ def agregar_texto_a_imagen(url_imagen, texto, posicion="Centro", color_hex="#000
         draw = ImageDraw.Draw(txt_layer)
         ancho, alto = img.size
         
-        # Tamaño dinámico: menor divisor = letra más grande
-        font_size = int(alto / tamano_prop) 
+        # 1. CÁLCULO DE TAMAÑO (Ahora basado en porcentaje real)
+        font_size = int(alto * (tamano_prop / 100)) 
         try:
             font = ImageFont.truetype("/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf", font_size)
         except:
             font = ImageFont.load_default()
 
-        # Ajuste de saltos de línea según el tamaño de la letra
-        wrapper_width = int(25 * (tamano_prop / 12)) 
-        lineas = textwrap.wrap(texto, width=max(10, wrapper_width))
-        espaciado = 15
+        # 2. AJUSTE DINÁMICO DEL ANCHO (Para que no se salga de la foto)
+        # Calculamos cuántos caracteres entran según el tamaño de la letra
+        caracteres_por_linea = max(10, int(ancho / (font_size * 0.6)))
+        lineas = textwrap.wrap(texto, width=caracteres_por_linea)
+        
+        espaciado = int(font_size * 0.2)
         alto_total_texto = len(lineas) * (font_size + espaciado)
         
+        # 3. POSICIONAMIENTO
         if posicion == "Arriba":
             y_text = alto * 0.1
         elif posicion == "Abajo":
@@ -250,6 +253,7 @@ def agregar_texto_a_imagen(url_imagen, texto, posicion="Centro", color_hex="#000
         else:
             y_text = (alto - alto_total_texto) / 2
 
+        # 4. COLOR Y DIBUJO
         h = color_hex.lstrip('#')
         rgb = tuple(int(h[i:i+2], 16) for i in (0, 2, 4))
 
@@ -257,19 +261,23 @@ def agregar_texto_a_imagen(url_imagen, texto, posicion="Centro", color_hex="#000
             bbox = draw.textbbox((0, 0), linea, font=font)
             w_line = bbox[2] - bbox[0]
             h_line = bbox[3] - bbox[1]
+            
+            # Fondo de la placa
             draw.rectangle([((ancho - w_line) / 2 - 20, y_text - 5), 
                             ((ancho + w_line) / 2 + 20, y_text + h_line + 10)], 
                            fill=rgb + (opacidad,)) 
+            
+            # Texto blanco arriba
             draw.text(((ancho - w_line) / 2, y_text), linea, font=font, fill="white")
-            y_text += h_line + espaciado
+            y_text += font_size + espaciado
 
         out = Image.alpha_composite(img, txt_layer).convert("RGB")
         img_byte_arr = io.BytesIO()
         out.save(img_byte_arr, format='JPEG', quality=95)
         return img_byte_arr.getvalue()
-    except:
+    except Exception as e:
+        st.error(f"Error al procesar imagen: {e}")
         return None
-
 
 # 4. SIDEBAR (CONFIGURACIÓN)
 with st.sidebar:
@@ -357,7 +365,7 @@ with tab1:
         c_p1, c_p2 = st.columns(2)
         with c_p1:
             pos_elegida = st.selectbox("Ubicación", ["Centro", "Arriba", "Abajo"])
-            tam_letra = st.slider("Tamaño de letra", 5, 25, 12, help="Menor = Más grande")
+        tam_letra = st.slider("Tamaño del texto (%)", 5, 50, 15, help="5 es sutil, 50 ocupa media imagen")
         with c_p2:
             color_placa = st.color_picker("Color bloque", "#000000")
             transp_placa = st.slider("Opacidad fondo", 0, 255, 180)
@@ -411,6 +419,7 @@ with tab1:
                         st.balloons()
                         st.success("¡Publicado!")
                     else: st.error(f"Error: {r}")
+
 
 
 

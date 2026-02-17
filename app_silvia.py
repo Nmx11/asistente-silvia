@@ -313,22 +313,17 @@ with tab1:
     with col_input:
         st.subheader("1. La Idea")
         
-        # Si no hay ideas, las creamos YA mismo antes de mostrar nada
         if 'disparadores' not in st.session_state:
             with st.spinner("Invocando sabiduría..."):
-                # Esto garantiza que al abrir la app ya haya 5 temas pro
                 st.session_state.disparadores = generar_temas_disparadores(GEMINI_KEY)
                 st.session_state.reset_key = 0
 
         c_wand, c_sel = st.columns([1, 5])
-        
         with c_wand:
-            # Al tocar la varita, cambia TODO
             if st.button("🪄", key="btn_magic_final"):
-                with st.spinner("🔄"):
-                    st.session_state.disparadores = generar_temas_disparadores(GEMINI_KEY)
-                    st.session_state.reset_key = random.randint(1, 9999)
-                    st.rerun()
+                st.session_state.disparadores = generar_temas_disparadores(GEMINI_KEY)
+                st.session_state.reset_key = random.randint(1, 9999)
+                st.rerun()
         
         with c_sel:
             r_key = st.session_state.get('reset_key', 0)
@@ -341,33 +336,19 @@ with tab1:
         val_topic = "" if tema_sugerido == "Escribir manual..." else tema_sugerido
         topic = st.text_area("¿De qué hablamos hoy?", value=val_topic, placeholder="Ej: El lugar del padre...")
         
-        # --- AQUÍ ABAJO DEJÁ TUS SELECTORES DE TONO Y FORMATO TAL CUAL ESTÁN ---
-        
-        c1, c2 = st.columns(2) # <--- ESTA LÍNEA ES LA QUE CREA 'c1' y 'c2'
+        c1, c2 = st.columns(2)
         with c1: 
-            tone = st.selectbox("Tono", [
-                "Empático", "Cuestionador", "Movilizador", 
-                "Socrático", "Inspirador", "Desafiante", 
-                "Didáctico", "Cercano", "Profesional"
-            ])
+            tone = st.selectbox("Tono", ["Empático", "Cuestionador", "Movilizador", "Socrático", "Inspirador", "Desafiante", "Didáctico", "Cercano", "Profesional"])
         with c2: 
-            post_format = st.selectbox("Formato", [
-                "Post de Feed", "Story", "Reel (Guion)", "Carrusel (Ideas)"
-            ])
+            post_format = st.selectbox("Formato", ["Post de Feed", "Story", "Reel (Guion)", "Carrusel (Ideas)"])
 
         if st.button("✨ Generar 3 Ideas con Gemini", type="primary"):
-            # Ahora usamos GEMINI_KEY (la variable de arriba) en lugar de gemini_key (el input)
-            if not GEMINI_KEY:
-                st.error("No se encontró la clave en los Secrets.")
-            else:
-                with st.spinner("Reflexionando..."):
-                    st.session_state.opciones = generar_contenido_ia(topic, tone, post_format, GEMINI_KEY)
+            with st.spinner("Reflexionando..."):
+                st.session_state.opciones = generar_contenido_ia(topic, tone, post_format, GEMINI_KEY)
 
-        # TABLERO DE OPCIONES (Aquí es donde Silvia elige)
         if st.session_state.opciones:
             st.markdown("### 💡 Elegí la que más te guste:")
             t_a, t_b, t_c = st.tabs(["Opción A", "Opción B", "Opción C"])
-            
             for i, t in enumerate([t_a, t_b, t_c]):
                 key = f"opcion_{i+1}"
                 with t:
@@ -375,164 +356,63 @@ with tab1:
                     if st.button(f"✅ Usar Opción {chr(65+i)}", key=f"sel_{i}"):
                         st.session_state.generated_copy = st.session_state.opciones[key]['texto']
                         st.session_state.suggested_sticker = st.session_state.opciones[key]['sticker']
-                        
-                        # GUARDAMOS LA FRASE PARA LA FOTO
-                        frase_ia = st.session_state.opciones[key].get('frase_placa', "")
-                        st.session_state.frase_para_placa = frase_ia
+                        st.session_state.frase_para_placa = st.session_state.opciones[key].get('frase_placa', "")
                         st.rerun()
 
         st.divider()
-        st.subheader("2. Editor Final")
-        final_caption = st.text_area("Refiná el texto:", value=st.session_state.generated_copy, height=150)
-        if st.session_state.suggested_sticker:
-            st.info(f"🤳 **Sticker recomendado:** {st.session_state.suggested_sticker}")
-
-        st.subheader("3. Multimedia Visual")
+        st.subheader("2. Editor Final y Placa")
         
-        # 1. Aseguramos que existan estas variables en la memoria
-        if 'selected_img' not in st.session_state: st.session_state.selected_img = "https://via.placeholder.com/400"
-        if 'current_page' not in st.session_state: st.session_state.current_page = 1
-        if 'search_query' not in st.session_state: st.session_state.search_query = ""
-        if 'search_results' not in st.session_state: st.session_state.search_results = []
-
-        busqueda = st.text_input("🎨 Buscar arte (ej: 'familia acuarela')", placeholder="¿Qué imagen buscamos?")
-        
-        # BOTÓN DE BÚSQUEDA
-        if st.button("🔍 Nueva Búsqueda"):
-            if not PIXABAY_KEY:
-                st.error("No se encontró la clave de Pixabay en los Secrets.")
-            else:
-                st.session_state.current_page = 1
-                st.session_state.search_query = busqueda
-                with st.spinner("Buscando inspiración visual..."):
-                    res, total = buscar_imagenes_pixabay(st.session_state.search_query, PIXABAY_KEY, formato=post_format, page=st.session_state.current_page)
-                    st.session_state.search_results = res
-
-        # 2. GRILLA DE RESULTADOS Y PAGINACIÓN
-        if st.session_state.search_results:
-            st.markdown("**Resultados:**")
-            cols = st.columns(3)
-            for idx, item in enumerate(st.session_state.search_results):
-                with cols[idx % 3]:
-                    url_img = item['largeImageURL']
-                    st.image(url_img, use_container_width=True)
-                    
-                    # Botones debajo de cada imagen
-                    c1, c2 = st.columns(2)
-                    with c1:
-                        if st.button("✅ Usar", key=f"img_{idx}"):
-                            st.session_state.selected_img = url_img
-                            st.rerun()
-                    with c2:
-                        # El botón de añadir solo aparece si estamos en modo Carrusel
-                        if post_format == "Carrusel (Ideas)":
-                            if st.button("➕ Añadir", key=f"add_{idx}"):
-                                if url_img not in st.session_state.carrusel:
-                                    st.session_state.carrusel.append(url_img)
-                                    st.toast("Añadida al carrusel 📸")
-            
-            st.divider()
-            
-            # --- NAVEGACIÓN DE PÁGINAS (Fuera del Carrusel) ---
-            col_nav1, col_nav2, col_nav3 = st.columns([1, 1, 1])
-            with col_nav1:
-                if st.button("⬅️ Anterior") and st.session_state.current_page > 1:
-                    st.session_state.current_page -= 1
-                    res, total = buscar_imagenes_pixabay(st.session_state.search_query, PIXABAY_KEY, formato=post_format, page=st.session_state.current_page)
-                    st.session_state.search_results = res
-                    st.rerun()
-            with col_nav2:
-                # Mostramos en qué página estamos en el medio
-                st.markdown(f"<div style='text-align: center; padding-top: 8px;'><b>Página {st.session_state.current_page}</b></div>", unsafe_allow_html=True)
-            with col_nav3:
-                if st.button("Siguiente ➡️"):
-                    st.session_state.current_page += 1
-                    res, total = buscar_imagenes_pixabay(st.session_state.search_query, PIXABAY_KEY, formato=post_format, page=st.session_state.current_page)
-                    st.session_state.search_results = res
-                    st.rerun()
-
-        # 3. SECCIÓN GESTOR DE CARRUSEL (DISEÑO LIMPIO)
-        if post_format == "Carrusel (Ideas)" and st.session_state.carrusel:
-            st.divider()
-            st.subheader("🖼️ Tu Carrusel (Máx 10)")
-            
-            if 'carrusel_index' not in st.session_state: st.session_state.carrusel_index = 0
-            
-            filas_carrusel = st.columns(4)
-            for i, foto in enumerate(st.session_state.carrusel):
-                with filas_carrusel[i % 4]:
-                    st.image(foto, use_container_width=True)
-                    c_ver, c_del = st.columns(2)
-                    with c_ver:
-                        if st.button("👁️", key=f"view_{i}", help="Ver en la Card"):
-                            st.session_state.current_view_img = foto
-                            st.session_state.carrusel_index = i
-                            st.rerun()
-                    with c_del:
-                        if st.button("🗑️", key=f"del_{i}", help="Quitar"):
-                            st.session_state.carrusel.pop(i)
-                            st.session_state.carrusel_index = 0
-                            st.rerun()
-            
-            if st.button("🗑️ Vaciar Carrusel"):
-                st.session_state.carrusel = []
-                st.session_state.carrusel_index = 0
-                st.rerun()
-
-        st.divider()
-         # Este es el link que finalmente se usa en la Preview
-        img_url = st.text_input("Link seleccionado:", value=st.session_state.selected_img)
-
-        # --- REEMPLAZO: Diseño de Placa Inteligente ---
-        st.markdown("---")
-        st.subheader("🎨 Diseño de Placa")
-        
-        # Recuperamos la frase que la IA pensó para la opción elegida
-        frase_defecto = st.session_state.get('frase_para_placa', "")
-        
-        texto_en_foto = st.text_input(
-            "Texto que irá SOBRE la imagen:", 
-            value=frase_defecto, 
-            placeholder="Ej: El orden precede al amor...",
-            help="Si elegiste una opción de Gemini, esto se llena solo. Podés editarlo."
-        )
-
-    # --- NUEVA SECCIÓN: DISEÑO DE PLACA ---
-        st.divider()
-        st.subheader("🎨 Personalizar Placa")
-        
-        texto_en_foto = st.text_input("Texto sobre la imagen:", value=st.session_state.get('frase_para_placa', ""))
+        # AQUÍ ESTÁ EL CAMBIO: Un solo lugar para editar el texto de la foto
+        texto_en_foto = st.text_input("Texto SOBRE la imagen:", value=st.session_state.get('frase_para_placa', ""))
         
         col_p1, col_p2 = st.columns(2)
         with col_p1:
-            pos_elegida = st.selectbox("Ubicación", ["Centro", "Arriba", "Abajo"])
+            pos_elegida = st.selectbox("Ubicación del texto", ["Centro", "Arriba", "Abajo"])
         with col_p2:
-            color_placa = st.color_picker("Color de fondo", "#000000")
+            color_placa = st.color_picker("Color del bloque", "#000000")
+
+        final_caption = st.text_area("Refiná el pie de foto:", value=st.session_state.generated_copy, height=150)
+        
+        st.subheader("3. Multimedia Visual")
+        busqueda = st.text_input("🎨 Buscar arte (ej: 'familia acuarela')")
+        if st.button("🔍 Nueva Búsqueda"):
+            st.session_state.current_page = 1
+            st.session_state.search_query = busqueda
+            res, total = buscar_imagenes_pixabay(busqueda, PIXABAY_KEY, formato=post_format)
+            st.session_state.search_results = res
+
+        if st.session_state.search_results:
+            cols = st.columns(3)
+            for idx, item in enumerate(st.session_state.search_results):
+                with cols[idx % 3]:
+                    st.image(item['largeImageURL'], use_container_width=True)
+                    if st.button("✅ Usar", key=f"img_{idx}"):
+                        st.session_state.selected_img = item['largeImageURL']
+                        st.rerun()
 
     with col_preview:
         st.subheader("📱 Vista Previa")
         
-        # Procesar imagen con texto para la PREVIEW
+        img_url = st.session_state.get('selected_img', "https://via.placeholder.com/400")
         img_final_para_meta = None
         
+        # PROCESAMIENTO PARA QUE SE VEA EN LA VISTA PREVIA
         if img_url and "placeholder" not in img_url:
             if texto_en_foto:
-                # Generamos la imagen con texto en tiempo real
-                img_procesada_bytes = agregar_texto_a_imagen(img_url, texto_en_foto, pos_elegida, color_placa)
-                if img_procesada_bytes:
-                    # Convertimos a base64 para mostrar en el HTML de la preview
+                # Esta es la función que realmente "dibuja"
+                img_bytes = agregar_texto_a_imagen(img_url, texto_en_foto, pos_elegida, color_placa)
+                if img_bytes:
                     import base64
-                    b64 = base64.b64encode(img_procesada_bytes).decode()
+                    b64 = base64.b64encode(img_bytes).decode()
                     img_a_mostrar = f"data:image/jpeg;base64,{b64}"
-                    img_final_para_meta = img_procesada_bytes # Guardamos para publicar
+                    img_final_para_meta = img_bytes
                 else:
                     img_a_mostrar = img_url
             else:
                 img_a_mostrar = img_url
         else:
-            img_a_mostrar = "https://via.placeholder.com/400?text=Selecciona+una+imagen"
+            img_a_mostrar = img_url
 
-        # (Aquí va tu código de html_design que ya tienes, usando img_a_mostrar)
         caption_br = final_caption.replace("\n", "<br>")
         html_design = f"""<div style="background:white;border:1px solid #dbdbdb;border-radius:12px;overflow:hidden;max-width:400px;margin:auto;font-family:sans-serif;text-align:left;">
             <div style="display:flex;align-items:center;padding:12px;">
@@ -549,13 +429,21 @@ with tab1:
                 </div>
             </div>
         </div>"""
-        
         st.markdown(html_design, unsafe_allow_html=True)
 
         if st.button("🚀 Publicar en Instagram", type="primary"):
-            # Usamos img_final_para_meta si existe (la imagen con texto), sino la URL
-            imagen_a_subir = img_final_para_meta if img_final_para_meta else img_url
-            # ... resto de tu lógica de publicación ...
+            if not META_TOKEN or not IG_ID or not IMGBB_KEY:
+                st.error("⚠️ Faltan credenciales.")
+            else:
+                with st.spinner("Publicando..."):
+                    # Enviamos los bytes con el texto si existen, si no la URL limpia
+                    archivo = img_final_para_meta if img_final_para_meta else img_url
+                    exito, r = post_to_instagram_api(final_caption, archivo, META_TOKEN, IG_ID, IMGBB_KEY, post_format)
+                    if exito:
+                        st.balloons()
+                        st.success("¡Publicado!")
+                    else:
+                        st.error(f"Error: {r}")
 
 
 

@@ -121,10 +121,10 @@ def generar_temas_disparadores(api_key):
         genai.configure(api_key=api_key)
         # Aplicamos el mismo modelo estable aquí
         # Esto reemplaza a la línea del model = ...
-    try:
-        model = genai.GenerativeModel('models/gemini-2.5-flash')
-    except:
-        model = genai.GenerativeModel('gemini-1.5-flash-latest')
+        try:
+            model = genai.GenerativeModel('models/gemini-2.5-flash')
+        except:
+            model = genai.GenerativeModel('gemini-1.5-flash-latest')
         
         estilos = ["Constelaciones Familiares", "Astrogenealogía", "Memoria Celular", "Flores de Bach", "Amor Propio y Límites"]
         enfoque = random.choice(estilos)
@@ -556,6 +556,7 @@ with col_preview:
                         st.error(f"No se pudo publicar. El sistema dice: {resultado}")
     else:
         st.info("Terminá de armar tu post para habilitar el botón de publicar.")
+
 
 
 

@@ -38,10 +38,10 @@ if 'carrusel' not in st.session_state: st.session_state.carrusel = []
 
 # 3. LÓGICA DE IA (GEMINI REAL)
 def generar_contenido_ia(tema, tono, formato, api_key):
-    try:
-       model = genai.GenerativeModel(
-       model_name='gemini-1.5-flash',
-       )
+        try:
+           model = genai.GenerativeModel(
+           model_name='gemini-1.5-flash',
+           )
         
         # 3. El resto de tu prompt sigue igual...
         prompt = f"""
@@ -551,4 +551,5 @@ with tab1:
                         st.success("✨ ¡Publicado con éxito!")
                     else:
                         st.error(f"❌ Error de Meta: {respuesta}")
+
 

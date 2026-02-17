@@ -259,21 +259,13 @@ def agregar_texto_a_imagen(url_imagen, texto, posicion="Centro", color_hex="#000
         draw = ImageDraw.Draw(txt_layer)
         ancho, alto = img.size
         
-        # --- PROCESAR RENGLONES MANUALES ---
-        # Reemplazamos "/" por salto de línea. 
-        # Si pone "//", resultará en "\n\n", lo que crea un espacio en blanco.
-        texto_con_saltos = texto.replace("/", "\n")
-        
-        # --- LÓGICA DE FUENTE ---
-        font_size = int(alto * (tamano_prop / 200))
-        if font_size > 50: font_size = 50 
+        # --- LÓGICA DE FUENTE MEJORADA ---
+        # Limitamos el tamaño real para que no explote
+        font_size = int(alto * (tamano_prop / 300)) # Ajusté el divisor para más precisión
+        if font_size < 10: font_size = 10
 
         font = None
-        rutas_fuentes = [
-            "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-            "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf"
-        ]
+        rutas_fuentes = ["/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"]
         for ruta in rutas_fuentes:
             try:
                 font = ImageFont.truetype(ruta, font_size)
@@ -281,52 +273,55 @@ def agregar_texto_a_imagen(url_imagen, texto, posicion="Centro", color_hex="#000
             except: continue
         if not font: font = ImageFont.load_default()
 
-        # --- SALTO DE LÍNEA DINÁMICO ---
-        ancho_max_texto = ancho * 0.8
-        ancho_caracter = font_size * 0.55
-        chars_por_linea = max(1, int(ancho_max_texto / ancho_caracter))
+        # --- AJUSTE DE TEXTO ---
+        texto_con_saltos = texto.replace("/", "\n")
+        ancho_max_bloque = ancho * 0.85
+        # Calculamos cuántos caracteres entran según el tamaño de la letra
+        chars_por_linea = max(10, int(ancho_max_bloque / (font_size * 0.6)))
         
         lineas = []
         for parrafo in texto_con_saltos.split('\n'):
-            if parrafo.strip() == "":
-                # Si el segmento está vacío (porque puso //), agregamos una línea vacía
-                lineas.append("")
-            else:
-                # Si tiene texto, lo ajustamos al ancho de la imagen
-                lineas.extend(textwrap.wrap(parrafo, width=chars_por_linea))
+            if parrafo.strip() == "": lineas.append("")
+            else: lineas.extend(textwrap.wrap(parrafo, width=chars_por_linea))
         
-        # --- CÁLCULO DE BLOQUE ---
+        # --- CÁLCULO DE ESPACIO REAL ---
         espaciado = int(font_size * 0.2)
         alto_total_texto = len(lineas) * (font_size + espaciado)
         
+        # Ajuste dinámico de posición para que NO se corte
+        margen = alto * 0.05
+        if posicion == "Arriba":
+            y_inicial = margen
+        elif posicion == "Abajo":
+            y_inicial = alto - alto_total_texto - margen
+        else: # Centro
+            y_inicial = (alto - alto_total_texto) / 2
+
+        # --- DIBUJAR FONDO ---
         max_w_real = 0
         for linea in lineas:
-            if linea: # Solo medimos el ancho si no es una línea vacía
+            if linea:
                 bbox = draw.textbbox((0, 0), linea, font=font)
                 max_w_real = max(max_w_real, bbox[2] - bbox[0])
 
-        # Definir Y inicial
-        if posicion == "Arriba": y_actual = alto * 0.1
-        elif posicion == "Abajo": y_actual = alto - alto_total_texto - (alto * 0.1)
-        else: y_actual = (alto - alto_total_texto) / 2
-
-        # --- DIBUJAR FONDO ---
-        padding_h, padding_v = 30, 20
         h_bg = color_hex.lstrip('#')
         rgb_bg = tuple(int(h_bg[i:i+2], 16) for i in (0, 2, 4))
         
+        # Dibujamos el rectángulo
+        pad_h, pad_v = 20, 15
         draw.rectangle([
-            (ancho - max_w_real) / 2 - padding_h, y_actual - padding_v,
-            (ancho + max_w_real) / 2 + padding_h, y_actual + alto_total_texto 
+            (ancho - max_w_real)/2 - pad_h, y_inicial - pad_v,
+            (ancho + max_w_real)/2 + pad_h, y_inicial + alto_total_texto + pad_v
         ], fill=rgb_bg + (opacidad,))
 
         # --- DIBUJAR TEXTO ---
+        y_cursor = y_inicial
         for linea in lineas:
-            if linea: # Si no es línea de espacio, dibujamos texto
+            if linea:
                 bbox = draw.textbbox((0, 0), linea, font=font)
                 w_linea = bbox[2] - bbox[0]
-                draw.text(((ancho - w_linea) / 2, y_actual), linea, font=font, fill=color_texto)
-            y_actual += font_size + espaciado
+                draw.text(((ancho - w_linea) / 2, y_cursor), linea, font=font, fill=color_texto)
+            y_cursor += font_size + espaciado
 
         out = Image.alpha_composite(img, txt_layer).convert("RGB")
         img_byte_arr = io.BytesIO()
@@ -470,36 +465,41 @@ with tab1:
        # --- DISEÑO DE PLACA ---
         st.subheader("3. Diseño de Placa")
         texto_en_foto = st.text_input("Texto SOBRE la imagen:", value=st.session_state.get('frase_para_placa', ""))
-        if st.button("👁️ Actualizar texto en foto"):
-            st.session_state.frase_para_placa = texto_en_foto
-            st.rerun()
         
         c_p1, c_p2, c_p3 = st.columns(3) 
         with c_p1:
-            pos_elegida = st.selectbox("Ubicación", ["Centro", "Arriba", "Abajo"])
-            tam_letra = st.slider("Tamaño del texto", 1, 50, 15)
+            # Clave: usamos la memoria para que no se resetee al volver de Pinterest
+            pos_elegida = st.selectbox("Ubicación", ["Centro", "Arriba", "Abajo"], key="pos_placa")
+            tam_letra = st.slider("Tamaño del texto", 5, 30, 15, key="tam_letra_placa")
         with c_p2:
-            color_placa = st.color_picker("Color fondo bloque", "#000000")
-            transp_placa = st.slider("Opacidad fondo", 0, 255, 180)
+            color_placa = st.color_picker("Color fondo bloque", "#000000", key="col_fondo_placa")
+            transp_placa = st.slider("Opacidad fondo", 0, 255, 180, key="opacidad_placa")
         with c_p3:
-            color_texto_placa = st.color_picker("Color de la letra", "#FFFFFF")
+            color_texto_placa = st.color_picker("Color de la letra", "#FFFFFF", key="col_txt_placa")
+
+        if st.button("👁️ Previsualizar Placa"):
+            st.session_state.frase_para_placa = texto_en_foto
+            st.rerun()
 
         # --- EDITOR FINAL ---
         st.subheader("4. Editor Final del Post")
         
+        # Función interna para guardar sin tocar botones
+        def guardar_cambios_locales():
+            st.session_state.generated_copy = st.session_state[f"area_editor_{st.session_state.editor_version}"]
+
         contenido_editor = st.text_area(
             "Refiná el pie de foto:", 
             value=st.session_state.generated_copy, 
             height=350,
-            # Esta key dinámica soluciona el problema de que quede vacío o no cambie
-            key=f"area_editor_{st.session_state.editor_version}" 
+            key=f"area_editor_{st.session_state.editor_version}",
+            on_change=guardar_cambios_locales # Esto guarda el texto CADA VEZ que salís del cuadro
         )
     
-        if st.button("💾 Guardar y Aplicar Cambios"):
+        if st.button("💾 CONFIRMAR GUARDADO FINAL"):
             st.session_state.generated_copy = contenido_editor
             st.session_state.final_caption = contenido_editor
-            st.success("¡Contenido guardado!")
-            st.rerun()
+            st.success("¡Contenido blindado! Podés ir a Pinterest tranquilo.")
             
 with col_preview:
     st.subheader("📱 Vista Previa")
@@ -595,6 +595,7 @@ with col_preview:
                         st.error(f"No se pudo publicar. El sistema dice: {resultado}")
     else:
         st.info("Terminá de armar tu post para habilitar el botón de publicar.")
+
 
 
 

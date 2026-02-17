@@ -384,21 +384,33 @@ with tab1:
                 st.session_state.opciones = generar_contenido_ia(topic, tone, post_format, GEMINI_KEY)
 
         if st.session_state.opciones:
-            st.markdown("### 💡 Elegí la que más te guste:")
-            t_a, t_b, t_c = st.tabs(["Opción A", "Opción B", "Opción C"])
-            for i, t in enumerate([t_a, t_b, t_c]):
-                key = f"opcion_{i+1}"
-                with t:
-                    if st.session_state.opciones:
-                        st.markdown("### 💡 Elegí la que más te guste:")
-                        t_a, t_b, t_c = st.tabs(["Opción A", "Opción B", "Opción C"])
-                        for i, t in enumerate([t_a, t_b, t_c]):
-                            key = f"opcion_{i+1}"
-                            with t:
-                                st.write(st.session_state.opciones[key]['texto'])
-                                # Asegurate de tener esta variable al inicio de tu código o en los botones:
-                                if 'editor_version' not in st.session_state: 
-                                    st.session_state.editor_version = 0
+    st.markdown("### 💡 Elegí la que más te guste:")
+    
+    # Creamos las pestañas UNA sola vez
+    t_a, t_b, t_c = st.tabs(["Opción A", "Opción B", "Opción C"])
+    
+    for i, t in enumerate([t_a, t_b, t_c]):
+        key_opcion = f"opcion_{i+1}"
+        with t:
+            # Mostramos el texto de la IA
+            st.write(st.session_state.opciones[key_opcion]['texto'])
+            
+            # Botón para seleccionar esta opción
+            if st.button(f"✅ Usar Opción {chr(65+i)}", key=f"btn_elige_{i}"):
+                # 1. Guardamos el texto en la memoria
+                st.session_state.generated_copy = st.session_state.opciones[key_opcion]['texto']
+                
+                # 2. Si tenés frase para placa, la guardamos también
+                if 'frase_placa' in st.session_state.opciones[key_opcion]:
+                    st.session_state.frase_para_placa = st.session_state.opciones[key_opcion]['frase_placa']
+                
+                # 3. EL TRUCO: Cambiamos la versión para que el editor de abajo se resetee
+                if 'editor_version' not in st.session_state:
+                    st.session_state.editor_version = 0
+                st.session_state.editor_version += 1
+                
+                # 4. Refrescamos para que el editor tome el cambio
+                st.rerun()
                                 
                                 # --- DENTRO DEL LOOP DE TABS ---
                                 if st.button(f"✅ Usar Opción {chr(65+i)}", key=f"btn_seleccion_{i}"): # Cambié la key para evitar el duplicado
@@ -589,6 +601,7 @@ with col_preview:
                         st.error(f"No se pudo publicar. El sistema dice: {resultado}")
     else:
         st.info("Terminá de armar tu post para habilitar el botón de publicar.")
+
 
 
 

@@ -371,15 +371,28 @@ with tab1:
         st.divider()
         st.subheader("2. Multimedia Visual")
         
-        # Opción A: Buscador
-        busqueda = st.text_input("🎨 Buscar arte (ej: 'familia acuarela')")
-        if st.button("🔍 Nueva Búsqueda"):
-            st.session_state.current_page = 1
-            st.session_state.search_query = busqueda
-            res, total = buscar_imagenes_pixabay(busqueda, PIXABAY_KEY, formato=post_format)
-            st.session_state.search_results = res
+        # --- BUSCADOR UNIFICADO ---
+        busqueda = st.text_input("🎨 ¿Qué imagen buscamos? (ej: 'paz interior acuarela')", key="main_search")
+        
+        col_btn1, col_btn2 = st.columns(2)
+        
+        with col_btn1:
+            # BOTÓN PIXABAY (Busca dentro de la app)
+            if st.button("🔍 Buscar en Pixabay"):
+                st.session_state.current_page = 1
+                st.session_state.search_query = busqueda
+                res, total = buscar_imagenes_pixabay(busqueda, PIXABAY_KEY, formato=post_format)
+                st.session_state.search_results = res
+        
+        with col_btn2:
+            # BOTÓN PINTEREST (Abre pestaña nueva con la búsqueda lista)
+            # Reemplazamos espacios por %20 para que el link de Pinterest no se rompa
+            url_pin = f"https://ar.pinterest.com/search/pins/?q={busqueda.replace(' ', '%20')}"
+            st.markdown(f'<a href="{url_pin}" target="_blank"><button style="width:100%; border-radius:20px; background-color:#E60023; color:white; border:none; padding:10px; cursor:pointer; font-weight:bold;">📌 Ir a Pinterest ↗️</button></a>', unsafe_allow_html=True)
 
+        # --- RESULTADOS DE PIXABAY ---
         if st.session_state.get('search_results'):
+            st.write("Resultados de Pixabay:")
             cols = st.columns(3)
             for idx, item in enumerate(st.session_state.search_results):
                 with cols[idx % 3]:
@@ -388,25 +401,26 @@ with tab1:
                         st.session_state.selected_img = item['largeImageURL']
                         st.rerun()
 
-        # Opción B: URL Manual y Subida de Archivo
-        st.info("💡 ¿Tenés una imagen de Pinterest o tuya?")
+        # --- OPCIÓN MANUAL (Para cuando vuelve de Pinterest o tiene su foto) ---
+        st.info("💡 Si elegiste una foto de Pinterest: hacé clic derecho en ella, elegí 'Copiar dirección de imagen' y pegala abajo.")
+        
         col_url, col_file = st.columns(2)
         
         with col_url:
-            url_manual = st.text_input("🔗 Pegá el link aquí:", placeholder="https://...")
-            if st.button("🖼️ Usar link"):
+            url_manual = st.text_input("🔗 Pegá el link de Pinterest aquí:", placeholder="https://...")
+            if st.button("🖼️ Cargar desde link"):
                 if url_manual:
                     st.session_state.selected_img = url_manual
                     st.rerun()
         
         with col_file:
-            archivo_subido = st.file_uploader("📁 O subí una foto:", type=['jpg', 'png', 'jpeg'])
+            archivo_subido = st.file_uploader("📁 O subí tu propia foto:", type=['jpg', 'png', 'jpeg'])
             if archivo_subido:
-                # Convertimos la imagen subida a bytes para que la app la procese
                 import base64
+                # Leemos el archivo y lo convertimos a base64 para previsualizarlo
                 encoded = base64.b64encode(archivo_subido.read()).decode()
                 st.session_state.selected_img = f"data:image/jpeg;base64,{encoded}"
-                st.success("¡Foto subida!")
+                st.success("¡Foto subida con éxito!")
                 
         st.subheader("3. Diseño de Placa")
         texto_en_foto = st.text_input("Texto SOBRE la imagen:", value=st.session_state.get('frase_para_placa', ""))
@@ -432,7 +446,7 @@ with tab1:
                                        height=150)
         
         # Botón vital para que Silvia confirme desde el celu
-        if st.button("📝 Confirmar cambios en el copy"):
+        if st.button("📝 Confirmar cambios"):
             st.session_state.generated_copy = contenido_editor
             st.session_state.final_caption = contenido_editor
             st.success("¡Texto guardado!")
@@ -532,6 +546,7 @@ with col_preview:
                         st.error(f"No se pudo publicar. El sistema dice: {resultado}")
     else:
         st.info("Terminá de armar tu post para habilitar el botón de publicar.")
+
 
 
 

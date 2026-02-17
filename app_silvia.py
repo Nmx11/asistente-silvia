@@ -384,30 +384,30 @@ with tab1:
                 st.session_state.opciones = generar_contenido_ia(topic, tone, post_format, GEMINI_KEY)
 
         if st.session_state.opciones:
-    st.markdown("### 💡 Elegí la que más te guste:")
-    
-    # Las pestañas se crean UNA sola vez, alineadas con el markdown de arriba
-    t_a, t_b, t_c = st.tabs(["Opción A", "Opción B", "Opción C"])
-    
-    for i, t in enumerate([t_a, t_b, t_c]):
-        key_opcion = f"opcion_{i+1}"
-        with t:
-            # El contenido de la pestaña va un nivel de indentación adentro
-            st.write(st.session_state.opciones[key_opcion]['texto'])
+            st.markdown("### 💡 Elegí la que más te guste:")
             
-            # El botón va a la misma altura que el st.write
-            if st.button(f"✅ Usar Opción {chr(65+i)}", key=f"btn_elige_{i}"):
-                # Todo lo que pasa al clickear va un nivel más adentro
-                st.session_state.generated_copy = st.session_state.opciones[key_opcion]['texto']
-                
-                if 'frase_placa' in st.session_state.opciones[key_opcion]:
-                    st.session_state.frase_para_placa = st.session_state.opciones[key_opcion]['frase_placa']
-                
-                if 'editor_version' not in st.session_state:
-                    st.session_state.editor_version = 0
-                st.session_state.editor_version += 1
-                
-                st.rerun()
+            # Las pestañas se crean UNA sola vez, alineadas con el markdown de arriba
+            t_a, t_b, t_c = st.tabs(["Opción A", "Opción B", "Opción C"])
+            
+            for i, t in enumerate([t_a, t_b, t_c]):
+                key_opcion = f"opcion_{i+1}"
+                with t:
+                    # El contenido de la pestaña va un nivel de indentación adentro
+                    st.write(st.session_state.opciones[key_opcion]['texto'])
+                    
+                    # El botón va a la misma altura que el st.write
+                    if st.button(f"✅ Usar Opción {chr(65+i)}", key=f"btn_elige_{i}"):
+                        # Todo lo que pasa al clickear va un nivel más adentro
+                        st.session_state.generated_copy = st.session_state.opciones[key_opcion]['texto']
+                        
+                        if 'frase_placa' in st.session_state.opciones[key_opcion]:
+                            st.session_state.frase_para_placa = st.session_state.opciones[key_opcion]['frase_placa']
+                        
+                        if 'editor_version' not in st.session_state:
+                            st.session_state.editor_version = 0
+                        st.session_state.editor_version += 1
+                        
+                        st.rerun()
                                 
                                 # --- DENTRO DEL LOOP DE TABS ---
                                 if st.button(f"✅ Usar Opción {chr(65+i)}", key=f"btn_seleccion_{i}"): # Cambié la key para evitar el duplicado
@@ -598,6 +598,7 @@ with col_preview:
                         st.error(f"No se pudo publicar. El sistema dice: {resultado}")
     else:
         st.info("Terminá de armar tu post para habilitar el botón de publicar.")
+
 
 
 

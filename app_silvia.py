@@ -410,7 +410,7 @@ with tab1:
                 
         st.subheader("3. Diseño de Placa")
         texto_en_foto = st.text_input("Texto SOBRE la imagen:", value=st.session_state.get('frase_para_placa', ""))
-            if st.button("👁️ Actualizar texto en foto"):
+        if st.button("👁️ Actualizar texto en foto"):
             st.session_state.frase_para_placa = texto_en_foto
             st.rerun()
         
@@ -488,6 +488,7 @@ with col_preview:
     </div>
     """
     st.markdown(html_post, unsafe_allow_html=True)
+
 
 
 

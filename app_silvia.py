@@ -234,7 +234,7 @@ def agregar_texto_a_imagen(url_imagen, texto, posicion="Centro", color_hex="#000
         
         # --- LÓGICA DE FUENTE Y TAMAÑO ---
         # Bajamos la escala: el tamano_prop ahora influye menos para que sea más preciso
-        ffont_size = int(alto * (tamano_prop / 200)) # Ajustamos la escala
+        font_size = int(alto * (tamano_prop / 200)) # Le sacamos la 'f' extra
         if font_size > 50: font_size = 50 # El máximo que pediste
 
         font = None
@@ -418,8 +418,7 @@ with col_preview:
     img_final_para_descargar = None
     
     # Si la variable del copy no existe todavía, le ponemos un texto por defecto
-    if 'texto_copy_final' not in locals() and 'texto_copy_final' not in globals():
-        texto_copy_final = "Aquí aparecerá tu copy..."
+    texto_copy_final = st.session_state.get('final_caption', "Aquí aparecerá tu copy...")
     
     # --- 2. PROCESAMIENTO DE IMAGEN ---
     if img_url_base and texto_en_foto.strip():
@@ -459,6 +458,7 @@ with col_preview:
     </div>
     """
     st.markdown(html_post, unsafe_allow_html=True)
+
 
 
 

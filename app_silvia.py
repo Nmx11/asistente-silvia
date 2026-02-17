@@ -232,42 +232,57 @@ def agregar_texto_a_imagen(url_imagen, texto, posicion="Centro", color_hex="#000
         draw = ImageDraw.Draw(txt_layer)
         ancho, alto = img.size
         
-        # Intentar cargar una fuente legible, sino usar la básica de Pillow
-        try:
-            # En Streamlit Cloud suele funcionar esta ruta
-            font_size = int(alto * (tamano_prop / 100))
-            font = ImageFont.truetype("/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf", font_size)
-        except:
-            # Si falla, cargamos la de sistema. Nota: load_default() no escala, 
-            # así que simulamos escala si es necesario, pero lo ideal es truetype.
-            font = ImageFont.load_default()
-            font_size = 20 # Tamaño fijo si falla la carga
+        # --- LÓGICA DE FUENTE CORREGIDA ---
+        font = None
+        # Calculamos el tamaño real basado en el alto de la imagen y el slider (0-100)
+        font_size = int(alto * (tamano_prop / 100))
+        if font_size < 10: font_size = 10 # Mínimo de seguridad
 
-        # Ajuste inteligente de líneas
-        # Calculamos cuántos caracteres entran según el ancho de la imagen
-        chars_previstos = max(10, int(ancho / (font_size * 0.5)))
-        lineas = textwrap.wrap(texto, width=chars_previstos)
+        # Lista de rutas posibles de fuentes en Linux/Streamlit Cloud
+        rutas_fuentes = [
+            "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+            "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf",
+            "Arial.ttf" # Fallback local
+        ]
+
+        for ruta in rutas_fuentes:
+            try:
+                font = ImageFont.truetype(ruta, font_size)
+                break 
+            except:
+                continue
+
+        if font is None:
+            # Si todo falla, usamos la default (que es chica)
+            font = ImageFont.load_default()
+            st.warning("No se pudo escalar la fuente. Usando fuente de sistema.")
+
+        # Ajuste de líneas según el tamaño de la letra
+        # Cuanto más grande la letra, menos caracteres entran por línea
+        ancho_letra_aprox = font_size * 0.5
+        chars_por_linea = max(5, int(ancho / ancho_letra_aprox))
+        lineas = textwrap.wrap(texto, width=chars_por_linea)
         
-        # Calcular alto total del bloque de texto
-        espaciado = int(font_size * 0.3)
+        # Calcular dimensiones del bloque
+        espaciado = int(font_size * 0.2)
         alto_total_texto = len(lineas) * (font_size + espaciado)
         
-        # Encontrar la línea más ancha para el fondo
         max_w = 0
         for linea in lineas:
             bbox = draw.textbbox((0, 0), linea, font=font)
             max_w = max(max_w, bbox[2] - bbox[0])
 
-        # Definir posición Y inicial
+        # Posición inicial Y
         if posicion == "Arriba":
             y_actual = alto * 0.1
         elif posicion == "Abajo":
             y_actual = alto - alto_total_texto - (alto * 0.1)
-        else:
+        else: # Centro
             y_actual = (alto - alto_total_texto) / 2
 
-        # Dibujar el rectángulo de fondo (Padding)
-        padding = 20
+        # Dibujar rectángulo de fondo
+        padding = font_size * 0.5 # Padding proporcional al tamaño de letra
         h_bg = color_hex.lstrip('#')
         rgb_bg = tuple(int(h_bg[i:i+2], 16) for i in (0, 2, 4))
         
@@ -278,7 +293,7 @@ def agregar_texto_a_imagen(url_imagen, texto, posicion="Centro", color_hex="#000
             y_actual + alto_total_texto + padding/2
         ], fill=rgb_bg + (opacidad,))
 
-        # Dibujar el texto línea por línea
+        # Dibujar texto
         for linea in lineas:
             bbox = draw.textbbox((0, 0), linea, font=font)
             w_linea = bbox[2] - bbox[0]
@@ -290,7 +305,6 @@ def agregar_texto_a_imagen(url_imagen, texto, posicion="Centro", color_hex="#000
         out.save(img_byte_arr, format='JPEG', quality=95)
         return img_byte_arr.getvalue()
     except Exception as e:
-        st.error(f"Error en diseño: {e}")
         return None
 
 # 4. SIDEBAR (CONFIGURACIÓN)
@@ -379,7 +393,8 @@ with tab1:
         c_p1, c_p2, c_p3 = st.columns(3) 
         with c_p1:
             pos_elegida = st.selectbox("Ubicación", ["Centro", "Arriba", "Abajo"])
-            tam_letra = st.slider("Tamaño del texto (%)", 5, 50, 15)
+            # Buscá esta línea y reemplazala
+            tam_letra = st.slider("Tamaño del texto (%)", 1, 100, 25)
         with c_p2:
             color_placa = st.color_picker("Color fondo bloque", "#000000")
             transp_placa = st.slider("Opacidad fondo", 0, 255, 180)
@@ -399,24 +414,20 @@ with col_preview:
         img_final_para_meta = None
         
         # Procesamiento de la imagen con texto
-        if img_url and "placeholder" not in img_url:
-            if texto_en_foto:
-                with st.spinner("Diseñando placa..."):
-                    img_bytes = agregar_texto_a_imagen(
-                        img_url, texto_en_foto, pos_elegida, 
-                        color_placa, tam_letra, transp_placa, color_texto_placa
-                    )
-                if img_bytes:
-                    import base64
-                    b64 = base64.b64encode(img_bytes).decode()
-                    img_a_mostrar = f"data:image/jpeg;base64,{b64}"
-                    img_final_para_meta = img_bytes
-                else:
-                    img_a_mostrar = img_url
+        # Dentro de with col_preview, asegurate que esta parte esté así:
+        if texto_en_foto:
+            img_bytes = agregar_texto_a_imagen(
+                img_url, texto_en_foto, pos_elegida, 
+                color_placa, tam_letra, transp_placa, color_texto_placa
+            )
+            if img_bytes:
+                import base64
+                b64 = base64.b64encode(img_bytes).decode()
+                img_a_mostrar = f"data:image/jpeg;base64,{b64}"
+                # Esta variable es la que se enviará a Instagram luego
+                st.session_state.imagen_final_bytes = img_bytes 
             else:
                 img_a_mostrar = img_url
-        else:
-            img_a_mostrar = img_url
 
         # Renderizado del post (Instagram Style)
         texto_caption = st.session_state.get('final_caption', "")
@@ -439,6 +450,7 @@ with col_preview:
         
         st.divider()
         # Aquí sigue tu botón de Publicar...
+
 
 
 

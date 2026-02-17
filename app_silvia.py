@@ -22,12 +22,29 @@ st.set_page_config(page_title="Universo Vivencial | CM Suite", page_icon="🌿",
 
 st.markdown("""
     <style>
-    .stButton>button { width: 100%; border-radius: 20px; font-weight: bold; }
-    .ig-card { background: white; border: 1px solid #dbdbdb; border-radius: 8px; padding: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-width: 400px; margin: auto; }
-    .ig-header { display: flex; align-items: center; margin-bottom: 10px; }
-    .ig-profile-pic { width: 35px; height: 35px; background: #e0e0e0; border-radius: 50%; margin-right: 10px; }
-    .ig-image { width: 100%; height: 300px; background: #f0f0f0; display: flex; align-items: center; justify-content: center; border-radius: 4px; overflow: hidden; }
-    .ig-caption { font-size: 14px; margin-top: 10px; line-height: 1.4; color: #262626; text-align: left;}
+    /* Botones más grandes y fáciles de tocar */
+    .stButton>button { 
+        width: 100%; 
+        border-radius: 12px; 
+        font-weight: bold; 
+        height: 55px; /* Altura cómoda para el pulgar */
+        font-size: 18px !important;
+    }
+    /* Editor de texto más grande y con letra legible */
+    textarea {
+        font-size: 16px !important; /* Evita zoom molesto en iPhone */
+        line-height: 1.5 !important;
+    }
+    /* Ajustes para la tarjeta de Instagram en móvil */
+    .ig-card { 
+        background: white; 
+        border: 1px solid #dbdbdb; 
+        border-radius: 8px; 
+        padding: 10px; 
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1); 
+        width: 100%; 
+        margin: auto; 
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -395,10 +412,10 @@ with tab1:
                 st.session_state.search_results = res
         
         with col_btn2:
-            # BOTÓN PINTEREST (Abre pestaña nueva con la búsqueda lista)
-            # Reemplazamos espacios por %20 para que el link de Pinterest no se rompa
             url_pin = f"https://ar.pinterest.com/search/pins/?q={busqueda.replace(' ', '%20')}"
-            st.markdown(f'<a href="{url_pin}" target="_blank"><button style="width:100%; border-radius:20px; background-color:#E60023; color:white; border:none; padding:10px; cursor:pointer; font-weight:bold;">📌 Ir a Pinterest ↗️</button></a>', unsafe_allow_html=True)
+            # Agregamos una advertencia visual
+            st.caption("⚠️ Guardá tu texto antes de irte")
+            st.markdown(f'<a href="{url_pin}" target="_blank"><button style="width:100%; border-radius:12px; background-color:#E60023; color:white; border:none; padding:15px; cursor:pointer; font-weight:bold; font-size:16px;">📌 Buscar en Pinterest ↗️</button></a>', unsafe_allow_html=True)
 
         # --- RESULTADOS DE PIXABAY ---
         if st.session_state.get('search_results'):
@@ -450,17 +467,20 @@ with tab1:
             color_texto_placa = st.color_picker("Color de la letra", "#FFFFFF")
 
         # --- AQUÍ AGREGAMOS EL EDITOR QUE FALTA ---
-        st.subheader("4. Editor Final del Post")
-        contenido_editor = st.text_area("Refiná el pie de foto:", 
-                                       value=st.session_state.get('generated_copy', ""), 
-                                       height=150)
-        
-        # Botón vital para que Silvia confirme desde el celu
-        if st.button("📝 Confirmar cambios"):
-            st.session_state.generated_copy = contenido_editor
-            st.session_state.final_caption = contenido_editor
-            st.success("¡Texto guardado!")
-            st.rerun()
+      st.subheader("4. Editor Final del Post")
+      # Agregamos height=350 para que sea un cuadro grande
+      contenido_editor = st.text_area(
+          "Refiná el pie de foto:", 
+          value=st.session_state.get('generated_copy', ""), 
+          height=350,
+          key="editor_principal_silvia" # Esto evita que se borre al volver de Pinterest
+      )
+    
+      if st.button("💾 Guardar y Aplicar Cambios"):
+          st.session_state.generated_copy = contenido_editor
+          st.session_state.final_caption = contenido_editor
+          st.success("¡Contenido guardado!")
+          st.rerun()
 
 with col_preview:
     st.subheader("📱 Vista Previa")
@@ -556,6 +576,7 @@ with col_preview:
                         st.error(f"No se pudo publicar. El sistema dice: {resultado}")
     else:
         st.info("Terminá de armar tu post para habilitar el botón de publicar.")
+
 
 
 

@@ -234,8 +234,8 @@ def agregar_texto_a_imagen(url_imagen, texto, posicion="Centro", color_hex="#000
         
         # --- LÓGICA DE FUENTE Y TAMAÑO ---
         # Bajamos la escala: el tamano_prop ahora influye menos para que sea más preciso
-        font_size = int(alto * (tamano_prop / 150)) # Dividimos por 150 para suavizar el crecimiento
-        if font_size < 12: font_size = 12
+        ffont_size = int(alto * (tamano_prop / 200)) # Ajustamos la escala
+        if font_size > 50: font_size = 50 # El máximo que pediste
 
         font = None
         rutas_fuentes = [
@@ -409,50 +409,57 @@ with tab1:
         st.session_state.final_caption = contenido_editor # Guardamos el texto
 
 with col_preview:
-        st.subheader("📱 Vista Previa")
-        img_url = st.session_state.get('selected_img', "https://via.placeholder.com/400")
-        img_final_para_meta = None
-        
-        # Procesamiento de la imagen con texto
-        # Dentro de with col_preview, asegurate que esta parte esté así:
-        if texto_en_foto:
+    st.subheader("📱 Vista Previa")
+    
+    # 1. INICIALIZACIÓN (Esto evita el NameError)
+    # Si no hay imagen seleccionada, usamos un placeholder. 
+    # Si hay, la variable empieza valiendo la URL original.
+    img_url_base = st.session_state.get('selected_img', "https://via.placeholder.com/400")
+    img_a_mostrar = img_url_base 
+    img_final_para_descargar = None
+
+    # 2. PROCESAMIENTO (Solo si hay texto para poner)
+    if img_url_base and texto_en_foto.strip():
+        with st.spinner("Preparando imagen..."):
             img_bytes = agregar_texto_a_imagen(
-                img_url, texto_en_foto, pos_elegida, 
-                color_placa, tam_letra, transp_placa, color_texto_placa
+                img_url_base, 
+                texto_en_foto, 
+                pos_elegida, 
+                color_placa, 
+                tam_letra, 
+                transp_placa, 
+                color_texto_placa
             )
+            
             if img_bytes:
                 import base64
                 b64 = base64.b64encode(img_bytes).decode()
+                # Ahora img_a_mostrar cambia de la URL a los datos procesados
                 img_a_mostrar = f"data:image/jpeg;base64,{b64}"
-                # Esta variable es la que se enviará a Instagram luego
-                st.session_state.imagen_final_bytes = img_bytes 
-            else:
-                img_a_mostrar = img_url
+                img_final_para_descargar = img_bytes
 
-        # Renderizado del post (Instagram Style)
-        texto_caption = st.session_state.get('final_caption', "")
-        html_post = f"""
-        <div style="background:white; border:1px solid #dbdbdb; border-radius:12px; max-width:400px; margin:auto; font-family:sans-serif;">
-            <div style="display:flex; align-items:center; padding:12px;">
-                <div style="width:32px; height:32px; background:linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888); border-radius:50%; margin-right:10px;"></div>
-                <b style="color:#262626; font-size:14px;">universovivencial</b>
-            </div>
-            <img src="{img_a_mostrar}" style="width:100%; display:block;">
-            <div style="padding:12px;">
-                <div style="display:flex; gap:15px; margin-bottom:8px; font-size:20px;">❤️ 💬 🚀</div>
-                <div style="color:#262626; font-size:14px; line-height:1.5; text-align:left;">
-                    <b>universovivencial</b> {texto_caption.replace('\n', '<br>')}
-                </div>
-            </div>
+    # 3. RENDERIZADO HTML (Ahora img_a_mostrar SIEMPRE existe)
+    html_post = f"""
+    <div style="background-color: white; padding: 15px; border-radius: 10px; border: 1px solid #ddd; color: black;">
+        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+            <div style="width: 40px; height: 40px; background-color: #eee; border-radius: 50%; margin-right: 10px;"></div>
+            <strong>Silvia Baldi</strong>
         </div>
-        """
-        st.markdown(html_post, unsafe_allow_html=True)
-        
-        st.divider()
-        # Aquí sigue tu botón de Publicar...
+        <img src="{img_a_mostrar}" style="width:100%; border-radius: 5px; display:block; margin-bottom: 10px;">
+        <p style="font-size: 0.9em; line-height: 1.4;">{texto_copy_final.replace('\n', '<br>')}</p>
+    </div>
+    """
+    st.markdown(html_post, unsafe_allow_html=True)
 
-
-
+    # 4. BOTÓN DE DESCARGA
+    if img_final_para_descargar:
+        st.download_button(
+            label="⬇️ Descargar Imagen para Instagram",
+            data=img_final_para_descargar,
+            file_name="post_silvia.jpg",
+            mime="image/jpeg",
+            use_container_width=True
+        )
 
 
 

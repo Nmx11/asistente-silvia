@@ -468,11 +468,13 @@ with tab1:
 
         # --- EDITOR FINAL (Corregido) ---
         st.subheader("4. Editor Final del Post")
+        
+        # El truco es usar 'value' apuntando directamente a la memoria
         contenido_editor = st.text_area(
             "Refiná el pie de foto:", 
-            value=st.session_state.get('generated_copy', ""), 
+            value=st.session_state.generated_copy, # <--- Cambio clave aquí
             height=350,
-            key="editor_principal_silvia"
+            key=f"editor_silvia_{st.session_state.reset_key}" # <--- Esto fuerza a refrescar
         )
     
         if st.button("💾 Guardar y Aplicar Cambios"):
@@ -575,6 +577,7 @@ with col_preview:
                         st.error(f"No se pudo publicar. El sistema dice: {resultado}")
     else:
         st.info("Terminá de armar tu post para habilitar el botón de publicar.")
+
 
 
 

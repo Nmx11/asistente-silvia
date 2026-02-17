@@ -232,11 +232,12 @@ def agregar_texto_a_imagen(url_imagen, texto, posicion="Centro", color_hex="#000
         draw = ImageDraw.Draw(txt_layer)
         ancho, alto = img.size
         
-        # --- 1. PROCESAR RENGLONES MANUALES ---
-        # Reemplazamos "/" o ";" por un salto de línea real para que Silvia pueda elegir dónde cortar
-        texto_con_saltos = texto.replace("/", "\n").replace(";", "\n")
+        # --- PROCESAR RENGLONES MANUALES ---
+        # Reemplazamos "/" por salto de línea. 
+        # Si pone "//", resultará en "\n\n", lo que crea un espacio en blanco.
+        texto_con_saltos = texto.replace("/", "\n")
         
-        # --- LÓGICA DE FUENTE Y TAMAÑO ---
+        # --- LÓGICA DE FUENTE ---
         font_size = int(alto * (tamano_prop / 200))
         if font_size > 50: font_size = 50 
 
@@ -246,24 +247,26 @@ def agregar_texto_a_imagen(url_imagen, texto, posicion="Centro", color_hex="#000
             "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
             "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf"
         ]
-
         for ruta in rutas_fuentes:
             try:
                 font = ImageFont.truetype(ruta, font_size)
                 break
             except: continue
-        
         if not font: font = ImageFont.load_default()
 
-        # --- 2. SALTO DE LÍNEA DINÁMICO (Mejorado) ---
+        # --- SALTO DE LÍNEA DINÁMICO ---
         ancho_max_texto = ancho * 0.8
         ancho_caracter = font_size * 0.55
         chars_por_linea = max(1, int(ancho_max_texto / ancho_caracter))
         
-        # Aquí está el cambio: procesamos cada renglón manual por separado
         lineas = []
         for parrafo in texto_con_saltos.split('\n'):
-            lineas.extend(textwrap.wrap(parrafo, width=chars_por_linea))
+            if parrafo.strip() == "":
+                # Si el segmento está vacío (porque puso //), agregamos una línea vacía
+                lineas.append("")
+            else:
+                # Si tiene texto, lo ajustamos al ancho de la imagen
+                lineas.extend(textwrap.wrap(parrafo, width=chars_por_linea))
         
         # --- CÁLCULO DE BLOQUE ---
         espaciado = int(font_size * 0.2)
@@ -271,35 +274,31 @@ def agregar_texto_a_imagen(url_imagen, texto, posicion="Centro", color_hex="#000
         
         max_w_real = 0
         for linea in lineas:
-            bbox = draw.textbbox((0, 0), linea, font=font)
-            max_w_real = max(max_w_real, bbox[2] - bbox[0])
+            if linea: # Solo medimos el ancho si no es una línea vacía
+                bbox = draw.textbbox((0, 0), linea, font=font)
+                max_w_real = max(max_w_real, bbox[2] - bbox[0])
 
         # Definir Y inicial
-        if posicion == "Arriba":
-            y_actual = alto * 0.1
-        elif posicion == "Abajo":
-            y_actual = alto - alto_total_texto - (alto * 0.1)
-        else:
-            y_actual = (alto - alto_total_texto) / 2
+        if posicion == "Arriba": y_actual = alto * 0.1
+        elif posicion == "Abajo": y_actual = alto - alto_total_texto - (alto * 0.1)
+        else: y_actual = (alto - alto_total_texto) / 2
 
         # --- DIBUJAR FONDO ---
-        padding_h = 30 
-        padding_v = 20 
+        padding_h, padding_v = 30, 20
         h_bg = color_hex.lstrip('#')
         rgb_bg = tuple(int(h_bg[i:i+2], 16) for i in (0, 2, 4))
         
         draw.rectangle([
-            (ancho - max_w_real) / 2 - padding_h, 
-            y_actual - padding_v,
-            (ancho + max_w_real) / 2 + padding_h, 
-            y_actual + alto_total_texto 
+            (ancho - max_w_real) / 2 - padding_h, y_actual - padding_v,
+            (ancho + max_w_real) / 2 + padding_h, y_actual + alto_total_texto 
         ], fill=rgb_bg + (opacidad,))
 
         # --- DIBUJAR TEXTO ---
         for linea in lineas:
-            bbox = draw.textbbox((0, 0), linea, font=font)
-            w_linea = bbox[2] - bbox[0]
-            draw.text(((ancho - w_linea) / 2, y_actual), linea, font=font, fill=color_texto)
+            if linea: # Si no es línea de espacio, dibujamos texto
+                bbox = draw.textbbox((0, 0), linea, font=font)
+                w_linea = bbox[2] - bbox[0]
+                draw.text(((ancho - w_linea) / 2, y_actual), linea, font=font, fill=color_texto)
             y_actual += font_size + espaciado
 
         out = Image.alpha_composite(img, txt_layer).convert("RGB")
@@ -548,6 +547,7 @@ with col_preview:
                         st.error(f"No se pudo publicar. El sistema dice: {resultado}")
     else:
         st.info("Terminá de armar tu post para habilitar el botón de publicar.")
+
 
 
 

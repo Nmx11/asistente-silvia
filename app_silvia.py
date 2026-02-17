@@ -49,13 +49,14 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 
-# 2. GESTIÓN DE MEMORIA
+# --- 2. GESTIÓN DE MEMORIA (Agregá la última línea) ---
 if 'generated_copy' not in st.session_state: st.session_state.generated_copy = ""
 if 'opciones' not in st.session_state: st.session_state.opciones = None
 if 'suggested_sticker' not in st.session_state: st.session_state.suggested_sticker = ""
 if 'carrusel' not in st.session_state: st.session_state.carrusel = []
 if 'search_results' not in st.session_state: st.session_state.search_results = []
 if 'final_caption' not in st.session_state: st.session_state.final_caption = ""
+if 'editor_version' not in st.session_state: st.session_state.editor_version = 0  # <--- AGREGÁ ESTA LÍNEA
 
 # 3. LÓGICA DE IA (GEMINI REAL Y ESTABLE)
 def generar_contenido_ia(tema, tono, formato, api_key):
@@ -594,6 +595,7 @@ with col_preview:
                         st.error(f"No se pudo publicar. El sistema dice: {resultado}")
     else:
         st.info("Terminá de armar tu post para habilitar el botón de publicar.")
+
 
 
 

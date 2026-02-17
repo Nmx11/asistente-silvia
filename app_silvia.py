@@ -396,12 +396,15 @@ with tab1:
                             key = f"opcion_{i+1}"
                             with t:
                                 st.write(st.session_state.opciones[key]['texto'])
-                                if st.button(f"✅ Usar Opción {chr(65+i)}", key=f"sel_{i}"):
-                                    # 1. Guardamos el texto
+                                # Asegurate de tener esta variable al inicio de tu código o en los botones:
+                                if 'editor_version' not in st.session_state: 
+                                    st.session_state.editor_version = 0
+                                
+                                # --- DENTRO DEL LOOP DE TABS ---
+                                if st.button(f"✅ Usar Opción {chr(65+i)}", key=f"btn_seleccion_{i}"): # Cambié la key para evitar el duplicado
                                     st.session_state.generated_copy = st.session_state.opciones[key]['texto']
-                                    st.session_state.frase_para_placa = st.session_state.opciones[key].get('frase_placa', "")
-                                    # 2. CAMBIAMOS LA LLAVE para que el editor se resetee (ESTO ES LO NUEVO)
-                                    st.session_state.last_selected_key = f"{key}_{random.randint(0,9999)}"
+                                    # Esto es lo que "despierta" al editor:
+                                    st.session_state.editor_version += 1 
                                     st.rerun()
 
         st.divider()
@@ -475,18 +478,15 @@ with tab1:
         with c_p3:
             color_texto_placa = st.color_picker("Color de la letra", "#FFFFFF")
 
-# --- EDITOR FINAL (CORREGIDO PARA RESETEAR SIEMPRE) ---
+        # --- EDITOR FINAL ---
         st.subheader("4. Editor Final del Post")
-        
-        # Usamos una "key" dinámica que cambia cuando elegimos una opción nueva.
-        # Esto obliga a Streamlit a destruir el editor viejo y crear uno nuevo con el texto fresco.
-        editor_key = f"editor_final_{st.session_state.get('last_selected_key', 'init')}"
         
         contenido_editor = st.text_area(
             "Refiná el pie de foto:", 
-            value=st.session_state.get('generated_copy', ""), 
+            value=st.session_state.generated_copy, 
             height=350,
-            key=editor_key
+            # Esta key dinámica soluciona el problema de que quede vacío o no cambie
+            key=f"area_editor_{st.session_state.editor_version}" 
         )
     
         if st.button("💾 Guardar y Aplicar Cambios"):
@@ -589,6 +589,7 @@ with col_preview:
                         st.error(f"No se pudo publicar. El sistema dice: {resultado}")
     else:
         st.info("Terminá de armar tu post para habilitar el botón de publicar.")
+
 
 
 

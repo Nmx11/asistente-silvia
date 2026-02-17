@@ -36,6 +36,7 @@ if 'generated_copy' not in st.session_state: st.session_state.generated_copy = "
 if 'opciones' not in st.session_state: st.session_state.opciones = None
 if 'suggested_sticker' not in st.session_state: st.session_state.suggested_sticker = ""
 if 'carrusel' not in st.session_state: st.session_state.carrusel = []
+if 'search_results' not in st.session_state: st.session_state.search_results = []
 
 # 3. LÓGICA DE IA (GEMINI REAL Y ESTABLE)
 def generar_contenido_ia(tema, tono, formato, api_key):
@@ -351,7 +352,7 @@ with tab1:
             res, total = buscar_imagenes_pixabay(busqueda, PIXABAY_KEY, formato=post_format)
             st.session_state.search_results = res
 
-        if st.session_state.search_results:
+        if st.session_state.get('search_results'):
             cols = st.columns(3)
             for idx, item in enumerate(st.session_state.search_results):
                 with cols[idx % 3]:
@@ -420,6 +421,7 @@ with tab1:
                         st.balloons()
                         st.success("¡Publicado!")
                     else: st.error(f"Error: {r}")
+
 
 
 

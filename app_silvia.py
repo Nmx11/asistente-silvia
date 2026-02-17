@@ -389,11 +389,20 @@ with tab1:
             for i, t in enumerate([t_a, t_b, t_c]):
                 key = f"opcion_{i+1}"
                 with t:
-                    st.write(st.session_state.opciones[key]['texto'])
-                    if st.button(f"✅ Usar Opción {chr(65+i)}", key=f"sel_{i}"):
-                        st.session_state.generated_copy = st.session_state.opciones[key]['texto']
-                        st.session_state.frase_para_placa = st.session_state.opciones[key].get('frase_placa', "")
-                        st.rerun()
+                    if st.session_state.opciones:
+                        st.markdown("### 💡 Elegí la que más te guste:")
+                        t_a, t_b, t_c = st.tabs(["Opción A", "Opción B", "Opción C"])
+                        for i, t in enumerate([t_a, t_b, t_c]):
+                            key = f"opcion_{i+1}"
+                            with t:
+                                st.write(st.session_state.opciones[key]['texto'])
+                                if st.button(f"✅ Usar Opción {chr(65+i)}", key=f"sel_{i}"):
+                                    # 1. Guardamos el texto
+                                    st.session_state.generated_copy = st.session_state.opciones[key]['texto']
+                                    st.session_state.frase_para_placa = st.session_state.opciones[key].get('frase_placa', "")
+                                    # 2. CAMBIAMOS LA LLAVE para que el editor se resetee (ESTO ES LO NUEVO)
+                                    st.session_state.last_selected_key = f"{key}_{random.randint(0,9999)}"
+                                    st.rerun()
 
         st.divider()
         st.subheader("2. Multimedia Visual")
@@ -466,15 +475,18 @@ with tab1:
         with c_p3:
             color_texto_placa = st.color_picker("Color de la letra", "#FFFFFF")
 
-        # --- EDITOR FINAL (Corregido) ---
+# --- EDITOR FINAL (CORREGIDO PARA RESETEAR SIEMPRE) ---
         st.subheader("4. Editor Final del Post")
         
-        # El truco es usar 'value' apuntando directamente a la memoria
+        # Usamos una "key" dinámica que cambia cuando elegimos una opción nueva.
+        # Esto obliga a Streamlit a destruir el editor viejo y crear uno nuevo con el texto fresco.
+        editor_key = f"editor_final_{st.session_state.get('last_selected_key', 'init')}"
+        
         contenido_editor = st.text_area(
             "Refiná el pie de foto:", 
-            value=st.session_state.generated_copy, # <--- Cambio clave aquí
+            value=st.session_state.get('generated_copy', ""), 
             height=350,
-            key=f"editor_silvia_{st.session_state.reset_key}" # <--- Esto fuerza a refrescar
+            key=editor_key
         )
     
         if st.button("💾 Guardar y Aplicar Cambios"):
@@ -577,6 +589,7 @@ with col_preview:
                         st.error(f"No se pudo publicar. El sistema dice: {resultado}")
     else:
         st.info("Terminá de armar tu post para habilitar el botón de publicar.")
+
 
 
 

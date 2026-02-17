@@ -84,19 +84,19 @@ def generar_contenido_ia(tema, tono, formato, api_key):
         
         instruccion_tono = tonos_dict.get(tono, f"Mantené un tono {tono}.")
 
-        # Lógica de FORMATOS
-        if formato == "Story":
+        # Lógica de FORMATOS mejorada
+        if "Story" in formato:
             instrucciones_formato = """
-            - Formato Story: Texto corto, directo al corazón y scaneable.
-            - NO uses bloques de hashtags, máximo 1 o 2 integrados en el texto.
-            - Sticker: Recomendá un sticker interactivo de Instagram (Encuesta, Pregunta, Deslizador).
+            - Formato Story: Texto muy corto, frases potentes.
+            - NO uses bloques de hashtags.
+            - Sticker: Recomendá un sticker interactivo (Encuesta o Pregunta).
             """
         else:
             instrucciones_formato = """
-            - Formato Post/Reel: Copy detallado, con párrafos espaciados.
-            - Cerrá con un llamado a la reflexión o a la pausa consciente.
-            - Incluí un bloque de 5 hashtags específicos al final (ej: #SilviaBaldi #SanacionHolistica #CuidadoInterior).
-            - Sticker: Sugerí un elemento gráfico o GIF sutil.
+            - Formato Post/Reel: Copy profundo y espaciado.
+            - OBLIGATORIO: Al final del texto, dejá un espacio y agregá exactamente estos 5 hashtags: 
+              #SilviaBaldi #UniversoVivencial #ConstelacionesFamiliares #SanacionHolistica #BienestarInterior
+            - Sticker: Sugerí un GIF sutil.
             """
 
         # Prompt central
@@ -259,10 +259,9 @@ def agregar_texto_a_imagen(url_imagen, texto, posicion="Centro", color_hex="#000
         draw = ImageDraw.Draw(txt_layer)
         ancho, alto = img.size
         
-        # --- LÓGICA DE FUENTE MEJORADA ---
-        # Limitamos el tamaño real para que no explote
-        font_size = int(alto * (tamano_prop / 300)) # Ajusté el divisor para más precisión
-        if font_size < 10: font_size = 10
+        # Tamaño de fuente más preciso
+        font_size = int(alto * (tamano_prop / 450)) # Ajustamos escala
+        if font_size < 12: font_size = 12
 
         font = None
         rutas_fuentes = ["/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"]
@@ -273,54 +272,48 @@ def agregar_texto_a_imagen(url_imagen, texto, posicion="Centro", color_hex="#000
             except: continue
         if not font: font = ImageFont.load_default()
 
-        # --- AJUSTE DE TEXTO ---
+        # Ajuste de saltos de línea
         texto_con_saltos = texto.replace("/", "\n")
-        ancho_max_bloque = ancho * 0.85
-        # Calculamos cuántos caracteres entran según el tamaño de la letra
-        chars_por_linea = max(10, int(ancho_max_bloque / (font_size * 0.6)))
+        ancho_max_bloque = ancho * 0.80 # 80% del ancho para dejar aire a los costados
+        chars_por_linea = max(10, int(ancho_max_bloque / (font_size * 0.55)))
         
         lineas = []
         for parrafo in texto_con_saltos.split('\n'):
-            if parrafo.strip() == "": lineas.append("")
-            else: lineas.extend(textwrap.wrap(parrafo, width=chars_por_linea))
+            lineas.extend(textwrap.wrap(parrafo, width=chars_por_linea))
         
-        # --- CÁLCULO DE ESPACIO REAL ---
-        espaciado = int(font_size * 0.2)
+        espaciado = int(font_size * 0.25)
         alto_total_texto = len(lineas) * (font_size + espaciado)
         
-        # Ajuste dinámico de posición para que NO se corte
-        margen = alto * 0.05
+        # MÁRGENES DE SEGURIDAD (Para que Instagram no tape el texto)
+        margen_vertical = alto * 0.12 # 12% de margen para no tocar bordes
         if posicion == "Arriba":
-            y_inicial = margen
+            y_inicial = margen_vertical
         elif posicion == "Abajo":
-            y_inicial = alto - alto_total_texto - margen
-        else: # Centro
+            y_inicial = alto - alto_total_texto - margen_vertical - 40 # Extra para iconos de IG
+        else:
             y_inicial = (alto - alto_total_texto) / 2
 
-        # --- DIBUJAR FONDO ---
+        # Dibujar fondo (rectángulo)
         max_w_real = 0
         for linea in lineas:
-            if linea:
-                bbox = draw.textbbox((0, 0), linea, font=font)
-                max_w_real = max(max_w_real, bbox[2] - bbox[0])
+            bbox = draw.textbbox((0, 0), linea, font=font)
+            max_w_real = max(max_w_real, bbox[2] - bbox[0])
 
         h_bg = color_hex.lstrip('#')
         rgb_bg = tuple(int(h_bg[i:i+2], 16) for i in (0, 2, 4))
         
-        # Dibujamos el rectángulo
-        pad_h, pad_v = 20, 15
+        pad_h, pad_v = 25, 20
         draw.rectangle([
             (ancho - max_w_real)/2 - pad_h, y_inicial - pad_v,
             (ancho + max_w_real)/2 + pad_h, y_inicial + alto_total_texto + pad_v
         ], fill=rgb_bg + (opacidad,))
 
-        # --- DIBUJAR TEXTO ---
+        # Dibujar texto
         y_cursor = y_inicial
         for linea in lineas:
-            if linea:
-                bbox = draw.textbbox((0, 0), linea, font=font)
-                w_linea = bbox[2] - bbox[0]
-                draw.text(((ancho - w_linea) / 2, y_cursor), linea, font=font, fill=color_texto)
+            bbox = draw.textbbox((0, 0), linea, font=font)
+            w_linea = bbox[2] - bbox[0]
+            draw.text(((ancho - w_linea) / 2, y_cursor), linea, font=font, fill=color_texto)
             y_cursor += font_size + espaciado
 
         out = Image.alpha_composite(img, txt_layer).convert("RGB")
@@ -470,7 +463,7 @@ with tab1:
         with c_p1:
             # Clave: usamos la memoria para que no se resetee al volver de Pinterest
             pos_elegida = st.selectbox("Ubicación", ["Centro", "Arriba", "Abajo"], key="pos_placa")
-            tam_letra = st.slider("Tamaño del texto", 5, 30, 15, key="tam_letra_placa")
+            tam_letra = st.slider("Tamaño del texto", 5, 25, 12, key="tam_letra_placa") # Rango 5 a 25 es ideal
         with c_p2:
             color_placa = st.color_picker("Color fondo bloque", "#000000", key="col_fondo_placa")
             transp_placa = st.slider("Opacidad fondo", 0, 255, 180, key="opacidad_placa")
@@ -595,6 +588,7 @@ with col_preview:
                         st.error(f"No se pudo publicar. El sistema dice: {resultado}")
     else:
         st.info("Terminá de armar tu post para habilitar el botón de publicar.")
+
 
 
 

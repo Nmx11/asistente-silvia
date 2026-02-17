@@ -37,6 +37,7 @@ if 'opciones' not in st.session_state: st.session_state.opciones = None
 if 'suggested_sticker' not in st.session_state: st.session_state.suggested_sticker = ""
 if 'carrusel' not in st.session_state: st.session_state.carrusel = []
 if 'search_results' not in st.session_state: st.session_state.search_results = []
+if 'final_caption' not in st.session_state: st.session_state.final_caption = ""
 
 # 3. LÓGICA DE IA (GEMINI REAL Y ESTABLE)
 def generar_contenido_ia(tema, tono, formato, api_key):
@@ -365,7 +366,7 @@ with tab1:
         st.subheader("3. Diseño de Placa")
         texto_en_foto = st.text_input("Texto SOBRE la imagen:", value=st.session_state.get('frase_para_placa', ""))
         
-        c_p1, c_p2, c_p3 = st.columns(3) # Agregamos una columna más
+        c_p1, c_p2, c_p3 = st.columns(3) 
         with c_p1:
             pos_elegida = st.selectbox("Ubicación", ["Centro", "Arriba", "Abajo"])
             tam_letra = st.slider("Tamaño del texto (%)", 5, 50, 15)
@@ -373,16 +374,32 @@ with tab1:
             color_placa = st.color_picker("Color fondo bloque", "#000000")
             transp_placa = st.slider("Opacidad fondo", 0, 255, 180)
         with c_p3:
-            color_texto_placa = st.color_picker("Color de la letra", "#FFFFFF") # Nuevo!
+            color_texto_placa = st.color_picker("Color de la letra", "#FFFFFF")
 
-    with col_preview:
+        # --- AQUÍ AGREGAMOS EL EDITOR QUE FALTA ---
+        st.subheader("4. Editor Final del Post")
+        contenido_editor = st.text_area("Refiná el pie de foto:", 
+                                       value=st.session_state.get('generated_copy', ""), 
+                                       height=150)
+        st.session_state.final_caption = contenido_editor # Guardamos el texto
+
+   with col_preview:
         st.subheader("📱 Vista Previa")
         img_url = st.session_state.get('selected_img', "https://via.placeholder.com/400")
         img_final_para_meta = None
         
         if img_url and "placeholder" not in img_url:
             if texto_en_foto:
-                img_bytes = agregar_texto_a_imagen(img_url, texto_en_foto, pos_elegida, color_placa, tam_letra, transp_placa)
+                # LLAMADA CORREGIDA: Incluye el color de texto
+                img_bytes = agregar_texto_a_imagen(
+                    img_url, 
+                    texto_en_foto, 
+                    pos_elegida, 
+                    color_placa, 
+                    tam_letra, 
+                    transp_placa, 
+                    color_texto_placa
+                )
                 if img_bytes:
                     import base64
                     b64 = base64.b64encode(img_bytes).decode()
@@ -392,7 +409,10 @@ with tab1:
             else: img_a_mostrar = img_url
         else: img_a_mostrar = img_url
 
-        caption_br = final_caption.replace("\n", "<br>")
+        # REEMPLAZO SEGURO DE TEXTO:
+        texto_para_mostrar = st.session_state.get('final_caption', "")
+        caption_br = texto_para_mostrar.replace("\n", "<br>")
+        
         html_design = f"""<div style="background:white;border:1px solid #dbdbdb;border-radius:12px;overflow:hidden;max-width:400px;margin:auto;font-family:sans-serif;text-align:left;">
             <div style="display:flex;align-items:center;padding:12px;">
                 <div style="width:32px;height:32px;background:linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888);border-radius:50%;margin-right:10px;"></div>
@@ -409,18 +429,46 @@ with tab1:
             </div>
         </div>"""
         st.markdown(html_design, unsafe_allow_html=True)
+        
+        # ... (aquí termina tu html_design anterior)
+        st.markdown(html_design, unsafe_allow_html=True)
 
+        st.divider() # Un separador visual antes del botón
+        
+        # BOTÓN DE PUBLICAR (Dentro de la columna de vista previa)
         if st.button("🚀 Publicar en Instagram", type="primary"):
+            # Verificamos que tengamos todo lo necesario
+            texto_publicar = st.session_state.get('final_caption', "")
+            
             if not META_TOKEN or not IG_ID or not IMGBB_KEY:
-                st.error("⚠️ Faltan credenciales.")
+                st.error("⚠️ Faltan credenciales en los Secrets de Streamlit.")
+            elif not texto_publicar:
+                st.warning("⚠️ El pie de foto está vacío. Escribí algo en el Editor antes de publicar.")
             else:
-                with st.spinner("Publicando..."):
+                with st.spinner("Conectando con Instagram..."):
+                    # Si hay imagen procesada con texto usamos los bytes, sino la URL original
                     archivo = img_final_para_meta if img_final_para_meta else img_url
-                    exito, r = post_to_instagram_api(final_caption, archivo, META_TOKEN, IG_ID, IMGBB_KEY, post_format)
+                    
+                    exito, r = post_to_instagram_api(
+                        texto_publicar, 
+                        archivo, 
+                        META_TOKEN, 
+                        IG_ID, 
+                        IMGBB_KEY, 
+                        post_format
+                    )
+                    
                     if exito:
                         st.balloons()
-                        st.success("¡Publicado!")
-                    else: st.error(f"Error: {r}")
+                        st.success("¡Genial! Tu post ya está en Instagram.")
+                    else: 
+                        st.error(f"Hubo un problema: {r}")
+
+        # 6. PESTAÑA CALENDARIO (Solo para que no quede vacío el tab)
+        with tab2:
+            st.subheader("📅 Próximos posteos")
+            st.info("Aquí Silvia podrá organizar sus publicaciones programadas próximamente.")
+
 
 
 

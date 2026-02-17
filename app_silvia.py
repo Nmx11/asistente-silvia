@@ -54,68 +54,67 @@ if 'opciones' not in st.session_state: st.session_state.opciones = None
 if 'suggested_sticker' not in st.session_state: st.session_state.suggested_sticker = ""
 if 'carrusel' not in st.session_state: st.session_state.carrusel = []
 
-# 3. LÓGICA DE IA (GEMINI REAL)
+# 3. LÓGICA DE IA (GEMINI REAL Y ESTABLE)
 def generar_contenido_ia(tema, tono, formato, api_key):
     try:
-        # 1. En la función generar_contenido_ia, cambia esta línea:
+        genai.configure(api_key=api_key)
+        # Usamos el modelo estable que detectamos en tu cuenta para evitar errores de cuota (429)
         model = genai.GenerativeModel(model_name='models/gemini-flash-latest')
         
-        # 1. Lógica de TONOS (Definición específica para cada estilo)
-        if tono == "Cuestionador":
-            instruccion_tono = "Usá preguntas retóricas potentes que inviten a la introspección. El objetivo es que el usuario se sienta interpelado."
-        elif tono == "Movilizador":
-            instruccion_tono = "Usá un tono energético y de liderazgo. El copy debe empujar a la acción inmediata o a un cambio de hábito."
-        elif tono == "Socrático":
-            instruccion_tono = "No des respuestas. Guía al usuario con 2 o 3 preguntas secuenciales para que descubra su propia verdad sistémica."
-        elif tono == "Empático":
-            instruccion_tono = "Priorizá la validación emocional. Usá frases como 'Te entiendo', 'Es válido sentir esto' y mucha calidez."
-        elif tono == "Inspirador":
-            instruccion_tono = "Enfocate en la superación y la luz al final del camino. Usá metáforas de crecimiento, renacimiento y esperanza."
-        elif tono == "Desafiante":
-            instruccion_tono = "Rompé mitos. Sé directo y un poco disruptivo con las creencias limitantes tradicionales de la terapia."
-        elif tono == "Didáctico":
-            instruccion_tono = "Explicá conceptos de terapia sistémica (órdenes del amor, jerarquías) como si fuera una clase clara y simple."
-        elif tono == "Cercano":
-            instruccion_tono = "Hablá como una amiga tomando un café. Usá un lenguaje menos técnico y más cotidiano, muy humano."
-        elif tono == "Profesional":
-            instruccion_tono = "Mantené un lenguaje técnico impecable, serio y con autoridad clínica. Transmití confianza y experiencia."
-        else:
-            instruccion_tono = f"Mantené un tono {tono}."
+        # Lógica de TONOS (Adaptada a la voz de Silvia Baldi)
+        tonos_dict = {
+            "Empático": "Priorizá la validación emocional. Usá frases como 'Te entiendo profundamente', 'Es válido sentir que no podés con todo'. Hablá de la sensibilidad como una brújula.",
+            "Cuestionador": "Usá preguntas retóricas potentes que inviten a la introspección profunda. El objetivo es que el usuario se sienta interpelado desde el amor.",
+            "Movilizador": "Empujá suavemente a la acción o a un cambio de hábito. Usá frases como 'Recordá que tu valor no depende de tu productividad'.",
+            "Socrático": "No des respuestas. Guía al usuario con 2 o 3 preguntas secuenciales para que descubra su propia verdad sistémica o lealtad invisible.",
+            "Inspirador": "Hablá de la luz interior, la brújula del alma y el potencial de sanación. Recordale que 'el camino de sanación no es una línea recta'.",
+            "Desafiante": "Rompé mitos. Sé directo y disruptivo con las creencias limitantes, pero siempre desde el amor y la contención.",
+            "Didáctico": "Explicá conceptos de terapia sistémica (órdenes del amor, jerarquías) o biodecodificación de forma clara, simple y amorosa.",
+            "Cercano": "Hablá como una guía espiritual que se toma un café con vos. Lenguaje muy humano, cálido y sin tecnicismos fríos.",
+            "Profesional": "Mantené un lenguaje impecable, serio y con autoridad clínica holística, transmitiendo mucha confianza y experiencia."
+        }
+        
+        instruccion_tono = tonos_dict.get(tono, f"Mantené un tono {tono}.")
 
-        # 2. Lógica de FORMATOS (Stories vs Posts)
+        # Lógica de FORMATOS
         if formato == "Story":
             instrucciones_formato = """
-            - Formato Story: Frases cortas y potentes.
-            - NO uses bloques de hashtags.
-            - Sticker: Recomendá uno de interacción (Encuesta, Pregunta, Deslizador).
+            - Formato Story: Texto corto, directo al corazón y scaneable.
+            - NO uses bloques de hashtags, máximo 1 o 2 integrados en el texto.
+            - Sticker: Recomendá un sticker interactivo de Instagram (Encuesta, Pregunta, Deslizador).
             """
         else:
             instrucciones_formato = """
-            - Formato Post/Reel: Copy detallado y cálido.
-            - Incluí un bloque de 5 hashtags relevantes al final.
-            - Sticker: Sugerí un elemento gráfico o GIF.
+            - Formato Post/Reel: Copy detallado, con párrafos espaciados.
+            - Cerrá con un llamado a la reflexión o a la pausa consciente.
+            - Incluí un bloque de 5 hashtags específicos al final (ej: #SilviaBaldi #SanacionHolistica #CuidadoInterior).
+            - Sticker: Sugerí un elemento gráfico o GIF sutil.
             """
 
-        # 3. Armamos el mensaje para la IA (Prompt unificado)
+        # Prompt central
         prompt = f"""
-        Actúa como experto en terapias holísticas para Silvia Baldi. 
-        Tema: '{tema}'
+        Actúa como Silvia Baldi, una cálida y profunda experta en terapias holísticas (Constelaciones Familiares, Memoria Celular, Flores de Bach).
+        Tu audiencia son personas sensibles buscando sanación emocional, amor propio y bienestar interior.
         
-        INSTRUCCIONES DE ESTILO:
-        {instruccion_tono}
+        Tema a tratar: '{tema}'
+        Estilo solicitado: {instruccion_tono}
         
-        REQUERIMIENTOS DE FORMATO:
+        REGLAS VITALES DE TU IDENTIDAD:
+        1. Hablá SIEMPRE usando el 'voseo' argentino cálido (vos, podés, sos, sentís, recordá). NUNCA uses 'tú'.
+        2. Usá metáforas suaves y naturales (luz, brújula interior, raíces, el árbol, el camino).
+        3. Que cada frase transmita paz, validación y empatía genuina.
+        
+        Requerimientos de Formato:
         {instrucciones_formato}
         
-        Respondé ÚNICAMENTE con un objeto JSON:
+        Respondé ÚNICAMENTE con un objeto JSON válido con esta estructura exacta:
         {{
-          "opcion_1": {{"texto": "copy aquí", "sticker": "idea", "frase_placa": "FRASE CORTA PARA LA IMAGEN"}},
-          "opcion_2": {{"texto": "copy aquí", "sticker": "idea", "frase_placa": "FRASE CORTA PARA LA IMAGEN"}},
-          "opcion_3": {{"texto": "copy aquí", "sticker": "idea", "frase_placa": "FRASE CORTA PARA LA IMAGEN"}}
+          "opcion_1": {{"texto": "copy completo aquí", "sticker": "idea de sticker", "frase_placa": "Frase corta y poética para la imagen"}},
+          "opcion_2": {{"texto": "copy completo aquí", "sticker": "idea de sticker", "frase_placa": "Frase corta y poética para la imagen"}},
+          "opcion_3": {{"texto": "copy completo aquí", "sticker": "idea de sticker", "frase_placa": "Frase corta y poética para la imagen"}}
         }}
         """
         
-        # 4. Llamada a la IA
         response = model.generate_content(
             prompt,
             generation_config={"response_mime_type": "application/json"}
@@ -130,37 +129,36 @@ def generar_temas_disparadores(api_key):
     import random
     try:
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        # Aplicamos el mismo modelo estable aquí
+        model = genai.GenerativeModel(model_name='models/gemini-flash-latest')
         
-        # Le damos un "toque" distinto cada vez para que no repita
-        estilos = ["Constelaciones Familiares", "Astrogenealogía", "Memoria Celular", "Flores de Bach"]
+        estilos = ["Constelaciones Familiares", "Astrogenealogía", "Memoria Celular", "Flores de Bach", "Amor Propio y Límites"]
         enfoque = random.choice(estilos)
         semilla = random.randint(1, 9999)
 
         prompt = f"""
-        Sos un experto en terapias holísticas. Generá 5 temas para Instagram sobre {enfoque}.
+        Sos Silvia Baldi, experta en terapias holísticas. Generá 5 temas para posts de Instagram sobre {enfoque}.
         ID Aleatorio: {semilla}.
         
         REGLAS:
-        - Frases profundas y complejas (ej: 'El síntoma como mensaje del árbol').
-        - Máximo 7 palabras. 
+        - Frases profundas, poéticas y movilizadoras (ej: 'El síntoma como brújula del árbol').
+        - Máximo 7 palabras por frase. 
         - Que resuenen con el alma de quien lee.
-        - NO uses números ni guiones. Escribí una frase por línea.
+        - NO uses números ni guiones. Escribí una frase limpia por línea.
         """
         
-        response = model.generate_content(prompt, generation_config={"temperature": 1.0})
+        response = model.generate_content(prompt, generation_config={"temperature": 0.9})
         temas = [line.strip() for line in response.text.split('\n') if len(line.strip()) > 5][:5]
         
-        if len(temas) < 3: raise Exception("IA perezosa")
+        if len(temas) < 3: raise Exception("Fallback manual")
         return temas
     except:
-        # Si la IA falla, este es el pozo de sabiduría de Silvia (siempre complejo)
         sabiduria_silvia = [
             "El éxito tiene la cara de la madre",
             "Lo que se excluye se repite en el árbol",
-            "Tu síntoma es una puerta a la sanación",
+            "Tu sensibilidad es tu brújula",
             "Lealtades invisibles que frenan tu vida",
-            "El orden en el amor para que fluya la vida",
+            "El orden en el amor para sanar",
             "Sanar el pasado para habitar el presente"
         ]
         return random.sample(sabiduria_silvia, 5)
@@ -554,6 +552,7 @@ with tab1:
                         st.success("✨ ¡Publicado con éxito!")
                     else:
                         st.error(f"❌ Error de Meta: {respuesta}")
+
 
 
 

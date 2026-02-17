@@ -42,7 +42,7 @@ if 'frase_para_placa' not in st.session_state: st.session_state.frase_para_placa
 
 def generar_contenido_ia(tema, tono, formato, api_key):
     try:
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-1.5-flash-latest')
         
         tonos_dict = {
             "Empático": "Priorizá la validación emocional. Usá frases como 'Te entiendo profundamente'.",
@@ -241,3 +241,4 @@ with tab1:
                 with st.spinner("Publicando..."):
                     res = post_to_instagram_api(st.session_state.final_caption, img_final_bytes if img_final_bytes else img_url, META_TOKEN, IG_ID, IMGBB_KEY)
                     st.write(res)
+

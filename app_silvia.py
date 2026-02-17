@@ -222,7 +222,7 @@ def post_to_instagram_api(caption, image_url, access_token, ig_user_id, imgbb_ke
     except Exception as e:
         return False, str(e)
 
-def agregar_texto_a_imagen(url_imagen, texto, posicion="Centro", color_hex="#000000", tamano_prop=15, opacidad=180):
+def agregar_texto_a_imagen(url_imagen, texto, posicion="Centro", color_hex="#000000", tamano_prop=15, opacidad=180, color_texto="#FFFFFF"):
     try:
         res = requests.get(url_imagen)
         img = Image.open(io.BytesIO(res.content)).convert("RGBA")
@@ -230,53 +230,55 @@ def agregar_texto_a_imagen(url_imagen, texto, posicion="Centro", color_hex="#000
         draw = ImageDraw.Draw(txt_layer)
         ancho, alto = img.size
         
-        # 1. CÁLCULO DE TAMAÑO (Ahora basado en porcentaje real)
+        # Tamaño de fuente
         font_size = int(alto * (tamano_prop / 100)) 
         try:
             font = ImageFont.truetype("/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf", font_size)
         except:
             font = ImageFont.load_default()
 
-        # 2. AJUSTE DINÁMICO DEL ANCHO (Para que no se salga de la foto)
-        # Calculamos cuántos caracteres entran según el tamaño de la letra
+        # Ajuste de líneas
         caracteres_por_linea = max(10, int(ancho / (font_size * 0.6)))
         lineas = textwrap.wrap(texto, width=caracteres_por_linea)
         
         espaciado = int(font_size * 0.2)
         alto_total_texto = len(lineas) * (font_size + espaciado)
         
-        # 3. POSICIONAMIENTO
+        # Cálculo de la caja de fondo unificada
+        max_w_line = 0
+        for linea in lineas:
+            bbox = draw.textbbox((0, 0), linea, font=font)
+            max_w_line = max(max_w_line, bbox[2] - bbox[0])
+
         if posicion == "Arriba":
-            y_text = alto * 0.1
+            y_inicio = alto * 0.1
         elif posicion == "Abajo":
-            y_text = alto - alto_total_texto - (alto * 0.1)
+            y_inicio = alto - alto_total_texto - (alto * 0.1)
         else:
-            y_text = (alto - alto_total_texto) / 2
+            y_inicio = (alto - alto_total_texto) / 2
 
-        # 4. COLOR Y DIBUJO
-        h = color_hex.lstrip('#')
-        rgb = tuple(int(h[i:i+2], 16) for i in (0, 2, 4))
+        # Dibujar UN SOLO rectángulo para todo el bloque
+        h_bg = color_hex.lstrip('#')
+        rgb_bg = tuple(int(h_bg[i:i+2], 16) for i in (0, 2, 4))
+        
+        padding = 30
+        draw.rectangle([
+            ((ancho - max_w_line) / 2 - padding, y_inicio - padding),
+            ((ancho + max_w_line) / 2 + padding, y_inicio + alto_total_texto + padding / 2)
+        ], fill=rgb_bg + (opacidad,))
 
+        # Dibujar el texto línea por línea
         for linea in lineas:
             bbox = draw.textbbox((0, 0), linea, font=font)
             w_line = bbox[2] - bbox[0]
-            h_line = bbox[3] - bbox[1]
-            
-            # Fondo de la placa
-            draw.rectangle([((ancho - w_line) / 2 - 20, y_text - 5), 
-                            ((ancho + w_line) / 2 + 20, y_text + h_line + 10)], 
-                           fill=rgb + (opacidad,)) 
-            
-            # Texto blanco arriba
-            draw.text(((ancho - w_line) / 2, y_text), linea, font=font, fill="white")
-            y_text += font_size + espaciado
+            draw.text(((ancho - w_line) / 2, y_inicio), linea, font=font, fill=color_texto)
+            y_inicio += font_size + espaciado
 
         out = Image.alpha_composite(img, txt_layer).convert("RGB")
         img_byte_arr = io.BytesIO()
         out.save(img_byte_arr, format='JPEG', quality=95)
         return img_byte_arr.getvalue()
     except Exception as e:
-        st.error(f"Error al procesar imagen: {e}")
         return None
 
 # 4. SIDEBAR (CONFIGURACIÓN)
@@ -362,16 +364,15 @@ with tab1:
         st.subheader("3. Diseño de Placa")
         texto_en_foto = st.text_input("Texto SOBRE la imagen:", value=st.session_state.get('frase_para_placa', ""))
         
-        c_p1, c_p2 = st.columns(2)
+        c_p1, c_p2, c_p3 = st.columns(3) # Agregamos una columna más
         with c_p1:
             pos_elegida = st.selectbox("Ubicación", ["Centro", "Arriba", "Abajo"])
-        tam_letra = st.slider("Tamaño del texto (%)", 5, 50, 15, help="5 es sutil, 50 ocupa media imagen")
+            tam_letra = st.slider("Tamaño del texto (%)", 5, 50, 15)
         with c_p2:
-            color_placa = st.color_picker("Color bloque", "#000000")
+            color_placa = st.color_picker("Color fondo bloque", "#000000")
             transp_placa = st.slider("Opacidad fondo", 0, 255, 180)
-
-        st.subheader("4. Editor Final del Post")
-        final_caption = st.text_area("Refiná el pie de foto:", value=st.session_state.get('generated_copy', ""), height=150)
+        with c_p3:
+            color_texto_placa = st.color_picker("Color de la letra", "#FFFFFF") # Nuevo!
 
     with col_preview:
         st.subheader("📱 Vista Previa")
@@ -419,6 +420,7 @@ with tab1:
                         st.balloons()
                         st.success("¡Publicado!")
                     else: st.error(f"Error: {r}")
+
 
 
 

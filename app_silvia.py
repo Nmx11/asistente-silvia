@@ -383,38 +383,34 @@ with tab1:
             with st.spinner("Reflexionando..."):
                 st.session_state.opciones = generar_contenido_ia(topic, tone, post_format, GEMINI_KEY)
 
+        # --- OPCIONES GENERADAS POR IA ---
         if st.session_state.opciones:
             st.markdown("### 💡 Elegí la que más te guste:")
             
-            # Las pestañas se crean UNA sola vez, alineadas con el markdown de arriba
+            # Las pestañas se crean UNA sola vez
             t_a, t_b, t_c = st.tabs(["Opción A", "Opción B", "Opción C"])
             
             for i, t in enumerate([t_a, t_b, t_c]):
                 key_opcion = f"opcion_{i+1}"
                 with t:
-                    # El contenido de la pestaña va un nivel de indentación adentro
+                    # Mostramos el texto de la IA
                     st.write(st.session_state.opciones[key_opcion]['texto'])
                     
-                    # El botón va a la misma altura que el st.write
+                    # Botón para seleccionar esta opción
                     if st.button(f"✅ Usar Opción {chr(65+i)}", key=f"btn_elige_{i}"):
-                        # Todo lo que pasa al clickear va un nivel más adentro
+                        # 1. Guardamos el texto en la memoria
                         st.session_state.generated_copy = st.session_state.opciones[key_opcion]['texto']
                         
+                        # 2. Guardamos la frase para la placa
                         if 'frase_placa' in st.session_state.opciones[key_opcion]:
                             st.session_state.frase_para_placa = st.session_state.opciones[key_opcion]['frase_placa']
                         
+                        # 3. Incrementamos la versión para que el editor se actualice
                         if 'editor_version' not in st.session_state:
                             st.session_state.editor_version = 0
                         st.session_state.editor_version += 1
                         
                         st.rerun()
-                                
-                                # --- DENTRO DEL LOOP DE TABS ---
-                                if st.button(f"✅ Usar Opción {chr(65+i)}", key=f"btn_seleccion_{i}"): # Cambié la key para evitar el duplicado
-                                    st.session_state.generated_copy = st.session_state.opciones[key]['texto']
-                                    # Esto es lo que "despierta" al editor:
-                                    st.session_state.editor_version += 1 
-                                    st.rerun()
 
         st.divider()
         st.subheader("2. Multimedia Visual")
@@ -598,6 +594,7 @@ with col_preview:
                         st.error(f"No se pudo publicar. El sistema dice: {resultado}")
     else:
         st.info("Terminá de armar tu post para habilitar el botón de publicar.")
+
 
 
 

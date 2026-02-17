@@ -239,48 +239,57 @@ def post_to_instagram_api(caption, image_url, access_token, ig_user_id, imgbb_ke
     except Exception as e:
         return False, str(e)
 
-def agregar_texto_a_imagen(url_imagen, texto):
-    # 1. Descargar la imagen
-    res = requests.get(url_imagen)
-    img = Image.open(io.BytesIO(res.content)).convert("RGB")
-    
-    # 2. Preparar el dibujo
-    draw = ImageDraw.Draw(img, "RGBA")
-    ancho, alto = img.size
-    
-    # 3. Configurar fuente (Ajustado para los servidores de Streamlit/Linux)
-    font_size = int(alto / 15)
+def agregar_texto_a_imagen(url_imagen, texto, posicion="Centro", color_hex="#000000"):
     try:
-        # Buscamos la fuente que viene por defecto en el servidor de Streamlit
-        font = ImageFont.truetype("/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf", font_size)
-    except:
-        font = ImageFont.load_default()
-
-    # 4. Dividir texto en líneas
-    lineas = textwrap.wrap(texto, width=25)
-    
-    # 5. Dibujar (Calculamos y_text para que el bloque quede centrado)
-    espaciado = 20
-    alto_total_texto = len(lineas) * (font_size + espaciado)
-    y_text = (alto - alto_total_texto) / 2 # <-- Esto centra el bloque verticalmente
-    
-    for linea in lineas:
-        bbox = draw.textbbox((0, 0), linea, font=font)
-        w_line = bbox[2] - bbox[0]
-        h_line = bbox[3] - bbox[1]
+        res = requests.get(url_imagen)
+        img = Image.open(io.BytesIO(res.content)).convert("RGBA") # Usamos RGBA para transparencia
+        txt_layer = Image.new('RGBA', img.size, (255,255,255,0))
+        draw = ImageDraw.Draw(txt_layer)
+        ancho, alto = img.size
         
-        # Fondo oscuro para legibilidad (un poco más opaco: 160)
-        draw.rectangle([((ancho - w_line) / 2 - 15, y_text - 5), 
-                        ((ancho + w_line) / 2 + 15, y_text + h_line + 5)], 
-                       fill=(0, 0, 0, 160))
-        
-        draw.text(((ancho - w_line) / 2, y_text), linea, font=font, fill="white")
-        y_text += h_line + espaciado
+        # Tamaño de fuente dinámico
+        font_size = int(alto / 14)
+        try:
+            font = ImageFont.truetype("/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf", font_size)
+        except:
+            font = ImageFont.load_default()
 
-    # 6. Guardar el resultado
-    img_byte_arr = io.BytesIO()
-    img.save(img_byte_arr, format='JPEG', quality=95) # Calidad alta
-    return img_byte_arr.getvalue()
+        lineas = textwrap.wrap(texto, width=22)
+        espaciado = 15
+        alto_total_texto = len(lineas) * (font_size + espaciado)
+        
+        # Lógica de POSICIÓN
+        if posicion == "Arriba":
+            y_text = alto * 0.1
+        elif posicion == "Abajo":
+            y_text = alto - alto_total_texto - (alto * 0.1)
+        else: # Centro
+            y_text = (alto - alto_total_texto) / 2
+
+        # Convertir color Hex a RGBA con transparencia
+        h = color_hex.lstrip('#')
+        rgb = tuple(int(h[i:i+2], 16) for i in (0, 2, 4))
+
+        for linea in lineas:
+            bbox = draw.textbbox((0, 0), linea, font=font)
+            w_line = bbox[2] - bbox[0]
+            h_line = bbox[3] - bbox[1]
+            
+            # Dibujar fondo del texto
+            draw.rectangle([((ancho - w_line) / 2 - 20, y_text - 5), 
+                            ((ancho + w_line) / 2 + 20, y_text + h_line + 10)], 
+                           fill=rgb + (180,)) # 180 es la opacidad
+            
+            draw.text(((ancho - w_line) / 2, y_text), linea, font=font, fill="white")
+            y_text += h_line + espaciado
+
+        # Combinar imagen original con capa de texto
+        out = Image.alpha_composite(img, txt_layer).convert("RGB")
+        img_byte_arr = io.BytesIO()
+        out.save(img_byte_arr, format='JPEG', quality=95)
+        return img_byte_arr.getvalue()
+    except Exception as e:
+        return None
 
 
 # 4. SIDEBAR (CONFIGURACIÓN)
@@ -488,70 +497,66 @@ with tab1:
             help="Si elegiste una opción de Gemini, esto se llena solo. Podés editarlo."
         )
 
+    # --- NUEVA SECCIÓN: DISEÑO DE PLACA ---
+        st.divider()
+        st.subheader("🎨 Personalizar Placa")
+        
+        texto_en_foto = st.text_input("Texto sobre la imagen:", value=st.session_state.get('frase_para_placa', ""))
+        
+        col_p1, col_p2 = st.columns(2)
+        with col_p1:
+            pos_elegida = st.selectbox("Ubicación", ["Centro", "Arriba", "Abajo"])
+        with col_p2:
+            color_placa = st.color_picker("Color de fondo", "#000000")
+
     with col_preview:
         st.subheader("📱 Vista Previa")
         
-        # Lógica de imagen para Carrusel
-        es_carrusel = (post_format == "Carrusel (Ideas)" and st.session_state.carrusel)
-        if es_carrusel:
-            # Mostramos la imagen que Silvia eligió mirar con el ojito (o la primera por defecto)
-            img_a_mostrar = getattr(st.session_state, 'current_view_img', st.session_state.carrusel[0])
-            idx_actual = st.session_state.get('carrusel_index', 0) + 1
-            total = len(st.session_state.carrusel)
-            badge = f'<div style="position:absolute;top:10px;right:10px;background:rgba(0,0,0,0.7);color:white;padding:4px 10px;border-radius:15px;font-size:12px;font-weight:bold;z-index:10;">{idx_actual}/{total} 🖼️</div>'
-        else:
-            img_a_mostrar = img_url if img_url and "placeholder" not in img_url else "https://via.placeholder.com/400?text=Selecciona+una+imagen"
-            badge = ""
-
-        caption_br = final_caption.replace("\n", "<br>")
-
-        # IMPORTANTE: Este bloque de abajo debe estar pegado al borde izquierdo
-        html_design = f"""<div style="background:white;border:1px solid #dbdbdb;border-radius:12px;overflow:hidden;max-width:400px;margin:auto;font-family:sans-serif;text-align:left;">
-<div style="display:flex;align-items:center;padding:12px;">
-<div style="width:32px;height:32px;background:linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888);border-radius:50%;margin-right:10px;"></div>
-<b style="color:#262626;font-size:14px;">universovivencial</b>
-</div>
-<div style="position:relative;width:100%;background:#fafafa;">
-<img src="{img_a_mostrar}" style="width:100%;display:block;">
-{badge}
-</div>
-<div style="padding:12px;">
-<div style="display:flex;gap:15px;margin-bottom:8px;font-size:20px;">❤️ 💬 🚀</div>
-<div style="color:#262626;font-size:14px;line-height:1.5;">
-<b style="color:#262626;">universovivencial</b> {caption_br}
-</div>
-</div>
-</div>"""
-
-        st.markdown(html_design, unsafe_allow_html=True)
+        # Procesar imagen con texto para la PREVIEW
+        img_final_para_meta = None
         
-        if st.button("🚀 Publicar en Instagram", type="primary"):
-            if not META_TOKEN or not IG_ID or not IMGBB_KEY:
-                st.error("⚠️ Faltan credenciales en los Secrets.")
-            elif not img_url or "placeholder" in img_url:
-                st.error("⚠️ Seleccioná una imagen primero.")
+        if img_url and "placeholder" not in img_url:
+            if texto_en_foto:
+                # Generamos la imagen con texto en tiempo real
+                img_procesada_bytes = agregar_texto_a_imagen(img_url, texto_en_foto, pos_elegida, color_placa)
+                if img_procesada_bytes:
+                    # Convertimos a base64 para mostrar en el HTML de la preview
+                    import base64
+                    b64 = base64.b64encode(img_procesada_bytes).decode()
+                    img_a_mostrar = f"data:image/jpeg;base64,{b64}"
+                    img_final_para_meta = img_procesada_bytes # Guardamos para publicar
+                else:
+                    img_a_mostrar = img_url
             else:
-                with st.spinner("🎨 Procesando imagen y subiendo..."):
-                    # Si Silvia escribió algo, procesamos la imagen
-                    imagen_final = img_url
-                    if texto_en_foto:
-                        # Esta función (agregar_texto_a_imagen) debemos definirla arriba
-                        imagen_final = agregar_texto_a_imagen(img_url, texto_en_foto)
-                    
-                    exito, respuesta = post_to_instagram_api(
-                        final_caption, 
-                        imagen_final, # Enviamos la imagen procesada (o el link original)
-                        META_TOKEN, 
-                        IG_ID, 
-                        IMGBB_KEY, 
-                        post_format
-                    )
-                    
-                    if exito:
-                        st.balloons()
-                        st.success("✨ ¡Publicado con éxito!")
-                    else:
-                        st.error(f"❌ Error de Meta: {respuesta}")
+                img_a_mostrar = img_url
+        else:
+            img_a_mostrar = "https://via.placeholder.com/400?text=Selecciona+una+imagen"
+
+        # (Aquí va tu código de html_design que ya tienes, usando img_a_mostrar)
+        caption_br = final_caption.replace("\n", "<br>")
+        html_design = f"""<div style="background:white;border:1px solid #dbdbdb;border-radius:12px;overflow:hidden;max-width:400px;margin:auto;font-family:sans-serif;text-align:left;">
+            <div style="display:flex;align-items:center;padding:12px;">
+                <div style="width:32px;height:32px;background:linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888);border-radius:50%;margin-right:10px;"></div>
+                <b style="color:#262626;font-size:14px;">universovivencial</b>
+            </div>
+            <div style="position:relative;width:100%;background:#fafafa;">
+                <img src="{img_a_mostrar}" style="width:100%;display:block;">
+            </div>
+            <div style="padding:12px;">
+                <div style="display:flex;gap:15px;margin-bottom:8px;font-size:20px;">❤️ 💬 🚀</div>
+                <div style="color:#262626;font-size:14px;line-height:1.5;">
+                    <b style="color:#262626;">universovivencial</b> {caption_br}
+                </div>
+            </div>
+        </div>"""
+        
+        st.markdown(html_design, unsafe_allow_html=True)
+
+        if st.button("🚀 Publicar en Instagram", type="primary"):
+            # Usamos img_final_para_meta si existe (la imagen con texto), sino la URL
+            imagen_a_subir = img_final_para_meta if img_final_para_meta else img_url
+            # ... resto de tu lógica de publicación ...
+
 
 
 

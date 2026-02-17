@@ -26,7 +26,7 @@ st.markdown("""
     .ig-header { display: flex; align-items: center; margin-bottom: 10px; }
     .ig-profile-pic { width: 35px; height: 35px; background: #e0e0e0; border-radius: 50%; margin-right: 10px; }
     .ig-image { width: 100%; height: 300px; background: #f0f0f0; display: flex; align-items: center; justify-content: center; border-radius: 4px; overflow: hidden; }
-    .ig-caption { font-size: 14px; margin-top: 10px; line-height: 1.4; color: #262626; /* Color oficial de texto de Instagram */text-align: left;}
+    .ig-caption { font-size: 14px; margin-top: 10px; line-height: 1.4; color: #262626; text-align: left;}
     </style>
     """, unsafe_allow_html=True)
 
@@ -38,24 +38,9 @@ if 'carrusel' not in st.session_state: st.session_state.carrusel = []
 
 # 3. LÓGICA DE IA (GEMINI REAL)
 def generar_contenido_ia(tema, tono, formato, api_key):
-        try:
-           model = genai.GenerativeModel(
-           model_name='gemini-1.5-flash',
-           )
-        
-        # 3. El resto de tu prompt sigue igual...
-        prompt = f"""
-        Actúa como experto en terapias holísticas para Silvia Baldi. 
-        Tema: '{tema}'
-        ... (tu lógica de prompt)
-        """
-        
-        # 4. Llamada con configuración de JSON
-        response = model.generate_content(
-            prompt,
-            generation_config={"response_mime_type": "application/json"}
-        )
-        return json.loads(response.text)
+    try:
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel(model_name='gemini-1.5-flash')
         
         # 1. Lógica de TONOS (Definición específica para cada estilo)
         if tono == "Cuestionador":
@@ -551,5 +536,3 @@ with tab1:
                         st.success("✨ ¡Publicado con éxito!")
                     else:
                         st.error(f"❌ Error de Meta: {respuesta}")
-
-

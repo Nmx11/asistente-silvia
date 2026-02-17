@@ -30,6 +30,22 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
+# --- BLOQUE DE DIAGNÓSTICO (Pegar aquí) ---
+with st.expander("🔍 Auditoría de Modelos (Click para ver qué modelos tenés activos)"):
+    if not GEMINI_KEY:
+        st.error("No hay API Key configurada.")
+    else:
+        try:
+            genai.configure(api_key=GEMINI_KEY)
+            modelos = genai.list_models()
+            for m in modelos:
+                st.write(f"✅ **ID:** `{m.name}`")
+                st.write(f"   *Métodos:* {m.supported_generation_methods}")
+                st.write("---")
+        except Exception as e:
+            st.error(f"Error al listar: {e}")
+# --- FIN DEL BLOQUE ---
+
 # 2. GESTIÓN DE MEMORIA
 if 'generated_copy' not in st.session_state: st.session_state.generated_copy = ""
 if 'opciones' not in st.session_state: st.session_state.opciones = None
@@ -536,3 +552,4 @@ with tab1:
                         st.success("✨ ¡Publicado con éxito!")
                     else:
                         st.error(f"❌ Error de Meta: {respuesta}")
+

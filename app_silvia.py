@@ -383,91 +383,92 @@ with tab1:
                                        height=150)
         st.session_state.final_caption = contenido_editor # Guardamos el texto
 
-   with col_preview:
-        st.subheader("📱 Vista Previa")
-        img_url = st.session_state.get('selected_img', "https://via.placeholder.com/400")
-        img_final_para_meta = None
-        
-        if img_url and "placeholder" not in img_url:
-            if texto_en_foto:
-                # LLAMADA CORREGIDA: Incluye el color de texto
-                img_bytes = agregar_texto_a_imagen(
-                    img_url, 
-                    texto_en_foto, 
-                    pos_elegida, 
-                    color_placa, 
-                    tam_letra, 
-                    transp_placa, 
-                    color_texto_placa
-                )
-                if img_bytes:
-                    import base64
-                    b64 = base64.b64encode(img_bytes).decode()
-                    img_a_mostrar = f"data:image/jpeg;base64,{b64}"
-                    img_final_para_meta = img_bytes
-                else: img_a_mostrar = img_url
+with col_preview:
+    st.subheader("📱 Vista Previa")
+    img_url = st.session_state.get('selected_img', "https://via.placeholder.com/400")
+    img_final_para_meta = None
+    
+    if img_url and "placeholder" not in img_url:
+        if texto_en_foto:
+            # LLAMADA CORREGIDA: Incluye el color de texto
+            img_bytes = agregar_texto_a_imagen(
+                img_url, 
+                texto_en_foto, 
+                pos_elegida, 
+                color_placa, 
+                tam_letra, 
+                transp_placa, 
+                color_texto_placa
+            )
+            if img_bytes:
+                import base64
+                b64 = base64.b64encode(img_bytes).decode()
+                img_a_mostrar = f"data:image/jpeg;base64,{b64}"
+                img_final_para_meta = img_bytes
             else: img_a_mostrar = img_url
         else: img_a_mostrar = img_url
+    else: img_a_mostrar = img_url
 
-        # REEMPLAZO SEGURO DE TEXTO:
-        texto_para_mostrar = st.session_state.get('final_caption', "")
-        caption_br = texto_para_mostrar.replace("\n", "<br>")
-        
-        html_design = f"""<div style="background:white;border:1px solid #dbdbdb;border-radius:12px;overflow:hidden;max-width:400px;margin:auto;font-family:sans-serif;text-align:left;">
-            <div style="display:flex;align-items:center;padding:12px;">
-                <div style="width:32px;height:32px;background:linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888);border-radius:50%;margin-right:10px;"></div>
-                <b style="color:#262626;font-size:14px;">universovivencial</b>
+    # REEMPLAZO SEGURO DE TEXTO:
+    texto_para_mostrar = st.session_state.get('final_caption', "")
+    caption_br = texto_para_mostrar.replace("\n", "<br>")
+    
+    html_design = f"""<div style="background:white;border:1px solid #dbdbdb;border-radius:12px;overflow:hidden;max-width:400px;margin:auto;font-family:sans-serif;text-align:left;">
+        <div style="display:flex;align-items:center;padding:12px;">
+            <div style="width:32px;height:32px;background:linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888);border-radius:50%;margin-right:10px;"></div>
+            <b style="color:#262626;font-size:14px;">universovivencial</b>
+        </div>
+        <div style="position:relative;width:100%;background:#fafafa;">
+            <img src="{img_a_mostrar}" style="width:100%;display:block;">
+        </div>
+        <div style="padding:12px;">
+            <div style="display:flex;gap:15px;margin-bottom:8px;font-size:20px;">❤️ 💬 🚀</div>
+            <div style="color:#262626;font-size:14px;line-height:1.5;">
+                <b style="color:#262626;">universovivencial</b> {caption_br}
             </div>
-            <div style="position:relative;width:100%;background:#fafafa;">
-                <img src="{img_a_mostrar}" style="width:100%;display:block;">
-            </div>
-            <div style="padding:12px;">
-                <div style="display:flex;gap:15px;margin-bottom:8px;font-size:20px;">❤️ 💬 🚀</div>
-                <div style="color:#262626;font-size:14px;line-height:1.5;">
-                    <b style="color:#262626;">universovivencial</b> {caption_br}
-                </div>
-            </div>
-        </div>"""
-        st.markdown(html_design, unsafe_allow_html=True)
-        
-        # ... (aquí termina tu html_design anterior)
-        st.markdown(html_design, unsafe_allow_html=True)
+        </div>
+    </div>"""
+    st.markdown(html_design, unsafe_allow_html=True)
+    
+    # ... (aquí termina tu html_design anterior)
+    st.markdown(html_design, unsafe_allow_html=True)
 
-        st.divider() # Un separador visual antes del botón
+    st.divider() # Un separador visual antes del botón
+    
+    # BOTÓN DE PUBLICAR (Dentro de la columna de vista previa)
+    if st.button("🚀 Publicar en Instagram", type="primary"):
+        # Verificamos que tengamos todo lo necesario
+        texto_publicar = st.session_state.get('final_caption', "")
         
-        # BOTÓN DE PUBLICAR (Dentro de la columna de vista previa)
-        if st.button("🚀 Publicar en Instagram", type="primary"):
-            # Verificamos que tengamos todo lo necesario
-            texto_publicar = st.session_state.get('final_caption', "")
-            
-            if not META_TOKEN or not IG_ID or not IMGBB_KEY:
-                st.error("⚠️ Faltan credenciales en los Secrets de Streamlit.")
-            elif not texto_publicar:
-                st.warning("⚠️ El pie de foto está vacío. Escribí algo en el Editor antes de publicar.")
-            else:
-                with st.spinner("Conectando con Instagram..."):
-                    # Si hay imagen procesada con texto usamos los bytes, sino la URL original
-                    archivo = img_final_para_meta if img_final_para_meta else img_url
-                    
-                    exito, r = post_to_instagram_api(
-                        texto_publicar, 
-                        archivo, 
-                        META_TOKEN, 
-                        IG_ID, 
-                        IMGBB_KEY, 
-                        post_format
-                    )
-                    
-                    if exito:
-                        st.balloons()
-                        st.success("¡Genial! Tu post ya está en Instagram.")
-                    else: 
-                        st.error(f"Hubo un problema: {r}")
+        if not META_TOKEN or not IG_ID or not IMGBB_KEY:
+            st.error("⚠️ Faltan credenciales en los Secrets de Streamlit.")
+        elif not texto_publicar:
+            st.warning("⚠️ El pie de foto está vacío. Escribí algo en el Editor antes de publicar.")
+        else:
+            with st.spinner("Conectando con Instagram..."):
+                # Si hay imagen procesada con texto usamos los bytes, sino la URL original
+                archivo = img_final_para_meta if img_final_para_meta else img_url
+                
+                exito, r = post_to_instagram_api(
+                    texto_publicar, 
+                    archivo, 
+                    META_TOKEN, 
+                    IG_ID, 
+                    IMGBB_KEY, 
+                    post_format
+                )
+                
+                if exito:
+                    st.balloons()
+                    st.success("¡Genial! Tu post ya está en Instagram.")
+                else: 
+                    st.error(f"Hubo un problema: {r}")
 
-        # 6. PESTAÑA CALENDARIO (Solo para que no quede vacío el tab)
-        with tab2:
-            st.subheader("📅 Próximos posteos")
-            st.info("Aquí Silvia podrá organizar sus publicaciones programadas próximamente.")
+    # 6. PESTAÑA CALENDARIO (Solo para que no quede vacío el tab)
+    with tab2:
+        st.subheader("📅 Próximos posteos")
+        st.info("Aquí Silvia podrá organizar sus publicaciones programadas próximamente.")
+
 
 
 

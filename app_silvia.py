@@ -1,3 +1,4 @@
+import google.generativeai as genai
 import os
 import textwrap
 import streamlit as st
@@ -547,6 +548,7 @@ with col_preview:
                         st.error(f"No se pudo publicar. El sistema dice: {resultado}")
     else:
         st.info("Terminá de armar tu post para habilitar el botón de publicar.")
+
 
 
 

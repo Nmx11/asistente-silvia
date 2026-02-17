@@ -449,6 +449,7 @@ with tab1:
                 st.session_state.selected_img = f"data:image/jpeg;base64,{encoded}"
                 st.success("¡Foto subida con éxito!")
                 
+       # --- DISEÑO DE PLACA ---
         st.subheader("3. Diseño de Placa")
         texto_en_foto = st.text_input("Texto SOBRE la imagen:", value=st.session_state.get('frase_para_placa', ""))
         if st.button("👁️ Actualizar texto en foto"):
@@ -458,7 +459,6 @@ with tab1:
         c_p1, c_p2, c_p3 = st.columns(3) 
         with c_p1:
             pos_elegida = st.selectbox("Ubicación", ["Centro", "Arriba", "Abajo"])
-            # Buscá esta línea y reemplazala
             tam_letra = st.slider("Tamaño del texto", 1, 50, 15)
         with c_p2:
             color_placa = st.color_picker("Color fondo bloque", "#000000")
@@ -466,22 +466,21 @@ with tab1:
         with c_p3:
             color_texto_placa = st.color_picker("Color de la letra", "#FFFFFF")
 
-        # --- AQUÍ AGREGAMOS EL EDITOR QUE FALTA ---
-      st.subheader("4. Editor Final del Post")
-      # Agregamos height=350 para que sea un cuadro grande
-      contenido_editor = st.text_area(
-          "Refiná el pie de foto:", 
-          value=st.session_state.get('generated_copy', ""), 
-          height=350,
-          key="editor_principal_silvia" # Esto evita que se borre al volver de Pinterest
-      )
+        # --- EDITOR FINAL (Corregido) ---
+        st.subheader("4. Editor Final del Post")
+        contenido_editor = st.text_area(
+            "Refiná el pie de foto:", 
+            value=st.session_state.get('generated_copy', ""), 
+            height=350,
+            key="editor_principal_silvia"
+        )
     
-      if st.button("💾 Guardar y Aplicar Cambios"):
-          st.session_state.generated_copy = contenido_editor
-          st.session_state.final_caption = contenido_editor
-          st.success("¡Contenido guardado!")
-          st.rerun()
-
+        if st.button("💾 Guardar y Aplicar Cambios"):
+            st.session_state.generated_copy = contenido_editor
+            st.session_state.final_caption = contenido_editor
+            st.success("¡Contenido guardado!")
+            st.rerun()
+            
 with col_preview:
     st.subheader("📱 Vista Previa")
     
@@ -576,6 +575,7 @@ with col_preview:
                         st.error(f"No se pudo publicar. El sistema dice: {resultado}")
     else:
         st.info("Terminá de armar tu post para habilitar el botón de publicar.")
+
 
 
 

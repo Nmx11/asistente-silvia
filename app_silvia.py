@@ -228,59 +228,69 @@ def agregar_texto_a_imagen(url_imagen, texto, posicion="Centro", color_hex="#000
     try:
         res = requests.get(url_imagen)
         img = Image.open(io.BytesIO(res.content)).convert("RGBA")
-        txt_layer = Image.new('RGBA', img.size, (255,255,255,0))
+        txt_layer = Image.new('RGBA', img.size, (0,0,0,0))
         draw = ImageDraw.Draw(txt_layer)
         ancho, alto = img.size
         
-        # Tamaño de fuente
-        font_size = int(alto * (tamano_prop / 100)) 
+        # Intentar cargar una fuente legible, sino usar la básica de Pillow
         try:
+            # En Streamlit Cloud suele funcionar esta ruta
+            font_size = int(alto * (tamano_prop / 100))
             font = ImageFont.truetype("/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf", font_size)
         except:
+            # Si falla, cargamos la de sistema. Nota: load_default() no escala, 
+            # así que simulamos escala si es necesario, pero lo ideal es truetype.
             font = ImageFont.load_default()
+            font_size = 20 # Tamaño fijo si falla la carga
 
-        # Ajuste de líneas
-        caracteres_por_linea = max(10, int(ancho / (font_size * 0.6)))
-        lineas = textwrap.wrap(texto, width=caracteres_por_linea)
+        # Ajuste inteligente de líneas
+        # Calculamos cuántos caracteres entran según el ancho de la imagen
+        chars_previstos = max(10, int(ancho / (font_size * 0.5)))
+        lineas = textwrap.wrap(texto, width=chars_previstos)
         
-        espaciado = int(font_size * 0.2)
+        # Calcular alto total del bloque de texto
+        espaciado = int(font_size * 0.3)
         alto_total_texto = len(lineas) * (font_size + espaciado)
         
-        # Cálculo de la caja de fondo unificada
-        max_w_line = 0
+        # Encontrar la línea más ancha para el fondo
+        max_w = 0
         for linea in lineas:
             bbox = draw.textbbox((0, 0), linea, font=font)
-            max_w_line = max(max_w_line, bbox[2] - bbox[0])
+            max_w = max(max_w, bbox[2] - bbox[0])
 
+        # Definir posición Y inicial
         if posicion == "Arriba":
-            y_inicio = alto * 0.1
+            y_actual = alto * 0.1
         elif posicion == "Abajo":
-            y_inicio = alto - alto_total_texto - (alto * 0.1)
+            y_actual = alto - alto_total_texto - (alto * 0.1)
         else:
-            y_inicio = (alto - alto_total_texto) / 2
+            y_actual = (alto - alto_total_texto) / 2
 
-        # Dibujar UN SOLO rectángulo para todo el bloque
+        # Dibujar el rectángulo de fondo (Padding)
+        padding = 20
         h_bg = color_hex.lstrip('#')
         rgb_bg = tuple(int(h_bg[i:i+2], 16) for i in (0, 2, 4))
         
-        padding = 30
         draw.rectangle([
-            ((ancho - max_w_line) / 2 - padding, y_inicio - padding),
-            ((ancho + max_w_line) / 2 + padding, y_inicio + alto_total_texto + padding / 2)
+            (ancho - max_w) / 2 - padding, 
+            y_actual - padding,
+            (ancho + max_w) / 2 + padding, 
+            y_actual + alto_total_texto + padding/2
         ], fill=rgb_bg + (opacidad,))
 
         # Dibujar el texto línea por línea
         for linea in lineas:
             bbox = draw.textbbox((0, 0), linea, font=font)
-            w_line = bbox[2] - bbox[0]
-            draw.text(((ancho - w_line) / 2, y_inicio), linea, font=font, fill=color_texto)
-            y_inicio += font_size + espaciado
+            w_linea = bbox[2] - bbox[0]
+            draw.text(((ancho - w_linea) / 2, y_actual), linea, font=font, fill=color_texto)
+            y_actual += font_size + espaciado
 
         out = Image.alpha_composite(img, txt_layer).convert("RGB")
         img_byte_arr = io.BytesIO()
         out.save(img_byte_arr, format='JPEG', quality=95)
         return img_byte_arr.getvalue()
     except Exception as e:
+        st.error(f"Error en diseño: {e}")
         return None
 
 # 4. SIDEBAR (CONFIGURACIÓN)
@@ -385,44 +395,33 @@ with tab1:
 
 with col_preview:
         st.subheader("📱 Vista Previa")
-        
-        # 1. Recuperamos la imagen seleccionada
         img_url = st.session_state.get('selected_img', "https://via.placeholder.com/400")
         img_final_para_meta = None
         
-        # 2. Procesamos la imagen (si hay texto, generamos los bytes)
+        # Procesamiento de la imagen con texto
         if img_url and "placeholder" not in img_url:
             if texto_en_foto:
-                img_bytes = agregar_texto_a_imagen(
-                    img_url, 
-                    texto_en_foto, 
-                    pos_elegida, 
-                    color_placa, 
-                    tam_letra, 
-                    transp_placa, 
-                    color_texto_placa
-                )
+                with st.spinner("Diseñando placa..."):
+                    img_bytes = agregar_texto_a_imagen(
+                        img_url, texto_en_foto, pos_elegida, 
+                        color_placa, tam_letra, transp_placa, color_texto_placa
+                    )
                 if img_bytes:
                     import base64
-                    # Convertimos a base64 para que el HTML la pueda mostrar
                     b64 = base64.b64encode(img_bytes).decode()
                     img_a_mostrar = f"data:image/jpeg;base64,{b64}"
                     img_final_para_meta = img_bytes
-                else: 
+                else:
                     img_a_mostrar = img_url
-            else: 
+            else:
                 img_a_mostrar = img_url
-        else: 
+        else:
             img_a_mostrar = img_url
 
-        # 3. Preparamos el texto (Caption)
-        texto_preview = st.session_state.get('final_caption', "")
-        caption_br = texto_preview.replace("\n", "<br>")
-        
-        # 4. El Diseño ÚNICO del Post
-        # Nota: quitamos los estilos redundantes para evitar duplicados visuales
+        # Renderizado del post (Instagram Style)
+        texto_caption = st.session_state.get('final_caption', "")
         html_post = f"""
-        <div style="background:white; border:1px solid #dbdbdb; border-radius:12px; overflow:hidden; max-width:400px; margin:auto; font-family:sans-serif;">
+        <div style="background:white; border:1px solid #dbdbdb; border-radius:12px; max-width:400px; margin:auto; font-family:sans-serif;">
             <div style="display:flex; align-items:center; padding:12px;">
                 <div style="width:32px; height:32px; background:linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888); border-radius:50%; margin-right:10px;"></div>
                 <b style="color:#262626; font-size:14px;">universovivencial</b>
@@ -431,32 +430,16 @@ with col_preview:
             <div style="padding:12px;">
                 <div style="display:flex; gap:15px; margin-bottom:8px; font-size:20px;">❤️ 💬 🚀</div>
                 <div style="color:#262626; font-size:14px; line-height:1.5; text-align:left;">
-                    <b>universovivencial</b> {caption_br}
+                    <b>universovivencial</b> {texto_caption.replace('\n', '<br>')}
                 </div>
             </div>
         </div>
         """
-        
-        # RENDERIZADO ÚNICO
         st.markdown(html_post, unsafe_allow_html=True)
-
+        
         st.divider()
+        # Aquí sigue tu botón de Publicar...
 
-        # 5. BOTÓN DE PUBLICAR
-        if st.button("🚀 Publicar en Instagram", type="primary"):
-            if not META_TOKEN or not IG_ID or not IMGBB_KEY:
-                st.error("⚠️ Faltan credenciales en Secrets.")
-            elif not texto_preview:
-                st.warning("⚠️ El pie de foto está vacío.")
-            else:
-                with st.spinner("Publicando..."):
-                    archivo_envio = img_final_para_meta if img_final_para_meta else img_url
-                    exito, r = post_to_instagram_api(texto_preview, archivo_envio, META_TOKEN, IG_ID, IMGBB_KEY, post_format)
-                    if exito:
-                        st.balloons()
-                        st.success("¡Publicado con éxito!")
-                    else: 
-                        st.error(f"Error: {r}")
 
 
 

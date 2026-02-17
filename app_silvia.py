@@ -411,16 +411,20 @@ with tab1:
 with col_preview:
     st.subheader("📱 Vista Previa")
     
-    # 1. INICIALIZACIÓN (Esto evita el NameError)
-    # Si no hay imagen seleccionada, usamos un placeholder. 
-    # Si hay, la variable empieza valiendo la URL original.
+    # --- 1. INICIALIZACIÓN DE SEGURIDAD ---
+    # Esto asegura que NADA de lo que se use en el HTML falte
     img_url_base = st.session_state.get('selected_img', "https://via.placeholder.com/400")
-    img_a_mostrar = img_url_base 
+    img_a_mostrar = img_url_base
     img_final_para_descargar = None
-
-    # 2. PROCESAMIENTO (Solo si hay texto para poner)
+    
+    # Si la variable del copy no existe todavía, le ponemos un texto por defecto
+    if 'texto_copy_final' not in locals() and 'texto_copy_final' not in globals():
+        texto_copy_final = "Aquí aparecerá tu copy..."
+    
+    # --- 2. PROCESAMIENTO DE IMAGEN ---
     if img_url_base and texto_en_foto.strip():
-        with st.spinner("Preparando imagen..."):
+        # Usamos un try/except interno para que si falla la imagen, no muera la app
+        try:
             img_bytes = agregar_texto_a_imagen(
                 img_url_base, 
                 texto_en_foto, 
@@ -430,36 +434,32 @@ with col_preview:
                 transp_placa, 
                 color_texto_placa
             )
-            
             if img_bytes:
                 import base64
                 b64 = base64.b64encode(img_bytes).decode()
-                # Ahora img_a_mostrar cambia de la URL a los datos procesados
                 img_a_mostrar = f"data:image/jpeg;base64,{b64}"
                 img_final_para_descargar = img_bytes
+        except Exception as e:
+            st.error("Error al procesar la imagen.")
 
-    # 3. RENDERIZADO HTML (Ahora img_a_mostrar SIEMPRE existe)
+    # --- 3. RENDERIZADO (Ahora con variables seguras) ---
+    # Usamos .get() si viene de session_state o la variable local segura
+    texto_a_renderizar = texto_copy_final if texto_copy_final else "..."
+    
     html_post = f"""
     <div style="background-color: white; padding: 15px; border-radius: 10px; border: 1px solid #ddd; color: black;">
         <div style="display: flex; align-items: center; margin-bottom: 10px;">
             <div style="width: 40px; height: 40px; background-color: #eee; border-radius: 50%; margin-right: 10px;"></div>
-            <strong>Silvia Baldi</strong>
+            <strong style="color: black;">Silvia Baldi</strong>
         </div>
         <img src="{img_a_mostrar}" style="width:100%; border-radius: 5px; display:block; margin-bottom: 10px;">
-        <p style="font-size: 0.9em; line-height: 1.4;">{texto_copy_final.replace('\n', '<br>')}</p>
+        <p style="font-size: 0.9em; line-height: 1.4; color: #333;">
+            {texto_a_renderizar.replace('\n', '<br>')}
+        </p>
     </div>
     """
     st.markdown(html_post, unsafe_allow_html=True)
 
-    # 4. BOTÓN DE DESCARGA
-    if img_final_para_descargar:
-        st.download_button(
-            label="⬇️ Descargar Imagen para Instagram",
-            data=img_final_para_descargar,
-            file_name="post_silvia.jpg",
-            mime="image/jpeg",
-            use_container_width=True
-        )
 
 
 

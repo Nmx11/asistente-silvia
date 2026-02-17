@@ -232,68 +232,68 @@ def agregar_texto_a_imagen(url_imagen, texto, posicion="Centro", color_hex="#000
         draw = ImageDraw.Draw(txt_layer)
         ancho, alto = img.size
         
-        # --- LÓGICA DE FUENTE CORREGIDA ---
-        font = None
-        # Calculamos el tamaño real basado en el alto de la imagen y el slider (0-100)
-        font_size = int(alto * (tamano_prop / 100))
-        if font_size < 10: font_size = 10 # Mínimo de seguridad
+        # --- LÓGICA DE FUENTE Y TAMAÑO ---
+        # Bajamos la escala: el tamano_prop ahora influye menos para que sea más preciso
+        font_size = int(alto * (tamano_prop / 150)) # Dividimos por 150 para suavizar el crecimiento
+        if font_size < 12: font_size = 12
 
-        # Lista de rutas posibles de fuentes en Linux/Streamlit Cloud
+        font = None
         rutas_fuentes = [
             "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
             "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-            "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf",
-            "Arial.ttf" # Fallback local
+            "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf"
         ]
 
         for ruta in rutas_fuentes:
             try:
                 font = ImageFont.truetype(ruta, font_size)
-                break 
-            except:
-                continue
+                break
+            except: continue
+        
+        if not font: font = ImageFont.load_default()
 
-        if font is None:
-            # Si todo falla, usamos la default (que es chica)
-            font = ImageFont.load_default()
-            st.warning("No se pudo escalar la fuente. Usando fuente de sistema.")
-
-        # Ajuste de líneas según el tamaño de la letra
-        # Cuanto más grande la letra, menos caracteres entran por línea
-        ancho_letra_aprox = font_size * 0.5
-        chars_por_linea = max(5, int(ancho / ancho_letra_aprox))
+        # --- SALTO DE LÍNEA DINÁMICO ---
+        # Calculamos el ancho máximo permitido (80% del ancho de la imagen para dejar margen)
+        ancho_max_texto = ancho * 0.8
+        # Estimamos ancho de un carácter (promedio)
+        ancho_caracter = font_size * 0.55
+        chars_por_linea = max(1, int(ancho_max_texto / ancho_caracter))
+        
+        # Rompemos el texto en renglones
         lineas = textwrap.wrap(texto, width=chars_por_linea)
         
-        # Calcular dimensiones del bloque
+        # --- CÁLCULO DE BLOQUE ---
         espaciado = int(font_size * 0.2)
         alto_total_texto = len(lineas) * (font_size + espaciado)
         
-        max_w = 0
+        # Medimos la línea más larga real para el fondo
+        max_w_real = 0
         for linea in lineas:
             bbox = draw.textbbox((0, 0), linea, font=font)
-            max_w = max(max_w, bbox[2] - bbox[0])
+            max_w_real = max(max_w_real, bbox[2] - bbox[0])
 
-        # Posición inicial Y
+        # Definir Y inicial
         if posicion == "Arriba":
             y_actual = alto * 0.1
         elif posicion == "Abajo":
             y_actual = alto - alto_total_texto - (alto * 0.1)
-        else: # Centro
+        else:
             y_actual = (alto - alto_total_texto) / 2
 
-        # Dibujar rectángulo de fondo
-        padding = font_size * 0.5 # Padding proporcional al tamaño de letra
+        # --- DIBUJAR FONDO ---
+        padding_h = 30 # Padding lateral
+        padding_v = 20 # Padding vertical
         h_bg = color_hex.lstrip('#')
         rgb_bg = tuple(int(h_bg[i:i+2], 16) for i in (0, 2, 4))
         
         draw.rectangle([
-            (ancho - max_w) / 2 - padding, 
-            y_actual - padding,
-            (ancho + max_w) / 2 + padding, 
-            y_actual + alto_total_texto + padding/2
+            (ancho - max_w_real) / 2 - padding_h, 
+            y_actual - padding_v,
+            (ancho + max_w_real) / 2 + padding_h, 
+            y_actual + alto_total_texto 
         ], fill=rgb_bg + (opacidad,))
 
-        # Dibujar texto
+        # --- DIBUJAR TEXTO ---
         for linea in lineas:
             bbox = draw.textbbox((0, 0), linea, font=font)
             w_linea = bbox[2] - bbox[0]
@@ -394,7 +394,7 @@ with tab1:
         with c_p1:
             pos_elegida = st.selectbox("Ubicación", ["Centro", "Arriba", "Abajo"])
             # Buscá esta línea y reemplazala
-            tam_letra = st.slider("Tamaño del texto (%)", 1, 100, 25)
+            tam_letra = st.slider("Tamaño del texto", 1, 50, 15)
         with c_p2:
             color_placa = st.color_picker("Color fondo bloque", "#000000")
             transp_placa = st.slider("Opacidad fondo", 0, 255, 180)
@@ -450,6 +450,7 @@ with col_preview:
         
         st.divider()
         # Aquí sigue tu botón de Publicar...
+
 
 
 

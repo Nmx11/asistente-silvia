@@ -489,6 +489,51 @@ with col_preview:
     """
     st.markdown(html_post, unsafe_allow_html=True)
 
+    # --- 4. BOTONES FINALES (DESCARGA Y PUBLICACIÓN) ---
+    st.divider()
+    
+    # Botón de descarga (Solo aparece si hay una imagen procesada)
+    if img_final_para_descargar:
+        st.download_button(
+            label="💾 Descargar Imagen a mi dispositivo",
+            data=img_final_para_descargar,
+            file_name="universo_vivencial_post.jpg",
+            mime="image/jpeg",
+            use_container_width=True
+        )
+
+    st.subheader("🚀 Publicar en Instagram")
+    
+    # Verificamos si hay una imagen y un texto reales antes de habilitar el botón
+    if st.session_state.get('selected_img') and texto_copy_final != "Aquí aparecerá tu copy...":
+        
+        if st.button("📲 PUBLICAR AHORA", type="primary"):
+            # Seguro por si Meta todavía no te aprobó los tokens
+            if not META_TOKEN or not IG_ID:
+                st.warning("⚠️ Faltan los permisos de Meta. Por ahora descargá la imagen y publicala manualmente.")
+            else:
+                with st.spinner("Conectando con Meta... (esto tarda unos 20 segundos)"):
+                    # Mandamos la imagen procesada con texto, o la original si no le puso texto
+                    img_para_ig = img_final_para_descargar if img_final_para_descargar else img_url_base
+                    
+                    exito, resultado = post_to_instagram_api(
+                        caption=texto_copy_final,
+                        image_url=img_para_ig,
+                        access_token=META_TOKEN,
+                        ig_user_id=IG_ID,
+                        imgbb_key=IMGBB_KEY,
+                        formato=post_format # Asumo que esta variable viene de col_input
+                    )
+                    
+                    if exito:
+                        st.balloons()
+                        st.success("¡Publicado con éxito! 🎉 Ya podés verlo en tu perfil.")
+                    else:
+                        st.error(f"No se pudo publicar. El sistema dice: {resultado}")
+    else:
+        st.info("Terminá de armar tu post para habilitar el botón de publicar.")
+
+
 
 
 

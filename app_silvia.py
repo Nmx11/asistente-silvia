@@ -470,7 +470,7 @@ with col_preview:
     <div style="background-color: white; padding: 15px; border-radius: 10px; border: 1px solid #ddd; color: black;">
         <div style="display: flex; align-items: center; margin-bottom: 10px;">
             <div style="width: 40px; height: 40px; background-color: #eee; border-radius: 50%; margin-right: 10px;"></div>
-            <strong style="color: black;">Silvia Baldi</strong>
+            <strong style="color: black;">universovivencial</strong>
         </div>
         <img src="{img_a_mostrar}" style="width:100%; border-radius: 5px; display:block; margin-bottom: 10px;">
         <p style="font-size: 0.9em; line-height: 1.4; color: #333;">
@@ -479,6 +479,7 @@ with col_preview:
     </div>
     """
     st.markdown(html_post, unsafe_allow_html=True)
+
 
 
 

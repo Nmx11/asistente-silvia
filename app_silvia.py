@@ -44,7 +44,7 @@ def generar_contenido_ia(tema, tono, formato, api_key):
     try:
         genai.configure(api_key=api_key)
         # Usamos el modelo estable que detectamos en tu cuenta para evitar errores de cuota (429)
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('models/gemini-2.0-flash-lite-preview-09-2025')
         
         # Lógica de TONOS (Adaptada a la voz de Silvia Baldi)
         tonos_dict = {
@@ -115,7 +115,7 @@ def generar_temas_disparadores(api_key):
     try:
         genai.configure(api_key=api_key)
         # Aplicamos el mismo modelo estable aquí
-        model = genai.GenerativeModel(model_name='models/gemini-flash-latest')
+        model = genai.GenerativeModel('models/gemini-2.0-flash-lite-preview-09-2025')
         
         estilos = ["Constelaciones Familiares", "Astrogenealogía", "Memoria Celular", "Flores de Bach", "Amor Propio y Límites"]
         enfoque = random.choice(estilos)
@@ -547,6 +547,7 @@ with col_preview:
                         st.error(f"No se pudo publicar. El sistema dice: {resultado}")
     else:
         st.info("Terminá de armar tu post para habilitar el botón de publicar.")
+
 
 
 

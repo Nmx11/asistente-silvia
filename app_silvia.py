@@ -62,8 +62,6 @@ if 'editor_version' not in st.session_state: st.session_state.editor_version = 0
 def generar_contenido_ia(tema, tono, formato, api_key):
     try:
         genai.configure(api_key=api_key)
-        # Usamos el modelo estable que detectamos en tu cuenta para evitar errores de cuota (429)
-        # Esto reemplaza a la línea del model = ...
         try:
             model = genai.GenerativeModel('models/gemini-2.0-flash')
         except:
@@ -81,13 +79,12 @@ def generar_contenido_ia(tema, tono, formato, api_key):
             "Cercano": "Hablá como una guía espiritual que se toma un café con vos. Lenguaje muy humano, cálido y sin tecnicismos fríos.",
             "Profesional": "Mantené un lenguaje impecable, serio y con autoridad clínica holística, transmitiendo mucha confianza y experiencia."
         }
-        
         instruccion_tono = tonos_dict.get(tono, f"Mantené un tono {tono}.")
 
         # Lógica de FORMATOS mejorada
         if "Story" in formato:
             instrucciones_formato = """
-            - Formato Story: Texto muy corto, frases potentes.
+            - Formato Story: Texto más corto, pero muy profundo y poético.
             - NO uses bloques de hashtags.
             - Sticker: Recomendá un sticker interactivo (Encuesta o Pregunta).
             """
@@ -99,33 +96,41 @@ def generar_contenido_ia(tema, tono, formato, api_key):
             - Sticker: Sugerí un GIF sutil.
             """
 
-        # Prompt central
+        # --- PROMPT MEJORADO PARA MÁS PROFUNDIDAD Y TEXTO ---
         prompt = f"""
-        Actúa como Silvia Baldi, una cálida y profunda experta en terapias holísticas (Constelaciones Familiares, Memoria Celular, Flores de Bach).
-        Tu audiencia son personas sensibles buscando sanación emocional, amor propio y bienestar interior.
+        Sos Silvia Baldi, terapeuta holística experta en Constelaciones Familiares y Biodecodificación. 
+        Tu misión es escribir un post transformador sobre: '{tema}'.
         
-        Tema a tratar: '{tema}'
-        Estilo solicitado: {instruccion_tono}
+        ESTILO Y VOZ:
+        - Usá 'voseo' argentino (sos, venís, sentís, podés). NUNCA uses 'tú' o 'puedes'.
+        - Tu tono es: {instruccion_tono}
+        - Usá metáforas ricas: raíces, hilos invisibles, el peso de la mochila, el jardín del alma.
         
-        REGLAS VITALES DE TU IDENTIDAD:
-        1. Hablá SIEMPRE usando el 'voseo' argentino cálido (vos, podés, sos, sentís, recordá). NUNCA uses 'tú'.
-        2. Usá metáforas suaves y naturales (luz, brújula interior, raíces, el árbol, el camino).
-        3. Que cada frase transmita paz, validación y empatía genuina.
+        ESTRUCTURA DEL COPY (OBLIGATORIO):
+        1. Gancho: Una primera frase potente que detenga el scroll y conecte con el dolor o la duda.
+        2. Desarrollo: Explicá el concepto holístico detrás del tema (MÍNIMO 2 o 3 PÁRRAFOS GENEROSOS). 
+           No seas superficial ni escatimes en palabras; profundizá en las lealtades, el cuerpo o lo que no se dice.
+        3. Reflexión: Una pregunta o pensamiento que deje al lector pensando todo el día.
+        4. Cierre y Llamado a la acción: Invitá a respirar, a comentar o a mirar adentro.
         
-        Requerimientos de Formato:
+        REQUERIMIENTOS TÉCNICOS:
         {instrucciones_formato}
         
         Respondé ÚNICAMENTE con un objeto JSON válido con esta estructura exacta:
         {{
-          "opcion_1": {{"texto": "copy completo aquí", "sticker": "idea de sticker", "frase_placa": "Frase corta y poética para la imagen"}},
-          "opcion_2": {{"texto": "copy completo aquí", "sticker": "idea de sticker", "frase_placa": "Frase corta y poética para la imagen"}},
-          "opcion_3": {{"texto": "copy completo aquí", "sticker": "idea de sticker", "frase_placa": "Frase corta y poética para la imagen"}}
+          "opcion_1": {{"texto": "copy largo y completo aquí...", "sticker": "idea de sticker", "frase_placa": "Frase corta y poética (max 7 palabras) para la imagen"}},
+          "opcion_2": {{"texto": "copy largo y completo aquí...", "sticker": "idea de sticker", "frase_placa": "Frase corta y poética (max 7 palabras) para la imagen"}},
+          "opcion_3": {{"texto": "copy largo y completo aquí...", "sticker": "idea de sticker", "frase_placa": "Frase corta y poética (max 7 palabras) para la imagen"}}
         }}
         """
         
+        # ACÁ ESTÁ EL CAMBIO DE TEMPERATURA PARA LOS POSTS LARGOS
         response = model.generate_content(
             prompt,
-            generation_config={"response_mime_type": "application/json"}
+            generation_config={
+                "response_mime_type": "application/json",
+                "temperature": 0.8
+            }
         )
         return json.loads(response.text)
         
@@ -137,8 +142,6 @@ def generar_temas_disparadores(api_key):
     import random
     try:
         genai.configure(api_key=api_key)
-        # Aplicamos el mismo modelo estable aquí
-        # Esto reemplaza a la línea del model = ...
         try:
             model = genai.GenerativeModel('models/gemini-2.0-flash')
         except:
@@ -148,6 +151,7 @@ def generar_temas_disparadores(api_key):
         enfoque = random.choice(estilos)
         semilla = random.randint(1, 9999)
 
+        # PROMPT CORREGIDO PARA LA VARITA MÁGICA (Textos cortos)
         prompt = f"""
         Sos Silvia Baldi, experta en terapias holísticas. Generá 5 temas para posts de Instagram sobre {enfoque}.
         ID Aleatorio: {semilla}.
@@ -159,7 +163,11 @@ def generar_temas_disparadores(api_key):
         - NO uses números ni guiones. Escribí una frase limpia por línea.
         """
         
-        response = model.generate_content(prompt, generation_config={"temperature": 0.9})
+        # ACÁ ESTÁ EL CAMBIO DE TEMPERATURA PARA LOS DISPARADORES
+        response = model.generate_content(
+            prompt, 
+            generation_config={"temperature": 0.8}
+        )
         temas = [line.strip() for line in response.text.split('\n') if len(line.strip()) > 5][:5]
         
         if len(temas) < 3: raise Exception("Fallback manual")
@@ -588,6 +596,7 @@ with col_preview:
                         st.error(f"No se pudo publicar. El sistema dice: {resultado}")
     else:
         st.info("Terminá de armar tu post para habilitar el botón de publicar.")
+
 
 
 

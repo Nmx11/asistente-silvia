@@ -370,6 +370,8 @@ with tab1:
 
         st.divider()
         st.subheader("2. Multimedia Visual")
+        
+        # Opción A: Buscador
         busqueda = st.text_input("🎨 Buscar arte (ej: 'familia acuarela')")
         if st.button("🔍 Nueva Búsqueda"):
             st.session_state.current_page = 1
@@ -386,7 +388,26 @@ with tab1:
                         st.session_state.selected_img = item['largeImageURL']
                         st.rerun()
 
-        st.divider()
+        # Opción B: URL Manual y Subida de Archivo
+        st.info("💡 ¿Tenés una imagen de Pinterest o tuya?")
+        col_url, col_file = st.columns(2)
+        
+        with col_url:
+            url_manual = st.text_input("🔗 Pegá el link aquí:", placeholder="https://...")
+            if st.button("🖼️ Usar link"):
+                if url_manual:
+                    st.session_state.selected_img = url_manual
+                    st.rerun()
+        
+        with col_file:
+            archivo_subido = st.file_uploader("📁 O subí una foto:", type=['jpg', 'png', 'jpeg'])
+            if archivo_subido:
+                # Convertimos la imagen subida a bytes para que la app la procese
+                import base64
+                encoded = base64.b64encode(archivo_subido.read()).decode()
+                st.session_state.selected_img = f"data:image/jpeg;base64,{encoded}"
+                st.success("¡Foto subida!")
+                
         st.subheader("3. Diseño de Placa")
         texto_en_foto = st.text_input("Texto SOBRE la imagen:", value=st.session_state.get('frase_para_placa', ""))
         
@@ -458,6 +479,7 @@ with col_preview:
     </div>
     """
     st.markdown(html_post, unsafe_allow_html=True)
+
 
 
 

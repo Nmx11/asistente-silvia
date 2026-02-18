@@ -350,71 +350,71 @@ with tab1:
     col_input, col_preview = st.columns([1, 1])
 
     with col_input:
-    st.subheader("1. La Idea")
-    
-    # --- MEMORIA DE DISPARADORES ---
-    # Esto evita que se ejecute "Invocando sabiduría" cada vez que volvés de Pinterest
-    if 'disparadores' not in st.session_state:
-        with st.spinner("Invocando sabiduría..."):
-            st.session_state.disparadores = generar_temas_disparadores(GEMINI_KEY)
-    
-    if 'reset_key' not in st.session_state:
-        st.session_state.reset_key = 0
-
-    c_wand, c_sel = st.columns([1, 5])
-    with c_wand:
-        if st.button("🪄", key="btn_magic_final"):
-            with st.spinner("Buscando nueva inspiración..."):
+        st.subheader("1. La Idea")
+        
+        # --- MEMORIA DE DISPARADORES ---
+        # Esto evita que se ejecute "Invocando sabiduría" cada vez que volvés de Pinterest
+        if 'disparadores' not in st.session_state:
+            with st.spinner("Invocando sabiduría..."):
                 st.session_state.disparadores = generar_temas_disparadores(GEMINI_KEY)
-                st.session_state.reset_key += 1 # Cambia el ID para limpiar el selectbox
-                st.rerun()
         
-    with c_sel:
-        r_key = st.session_state.get('reset_key', 0)
-        # Usamos un key único para el selectbox de inspiración
-        tema_sugerido = st.selectbox(
-            "Inspiración del día:", 
-            ["Escribir manual..."] + st.session_state.disparadores, 
-            key=f"sel_v3_{r_key}"
-        )
-
-    # --- INPUTS CON MEMORIA (Uso de 'key') ---
-    # Al poner key="user_topic", Streamlit guarda el texto automáticamente
-    val_topic = "" if tema_sugerido == "Escribir manual..." else tema_sugerido
+        if 'reset_key' not in st.session_state:
+            st.session_state.reset_key = 0
     
-    # Si el usuario escribió algo manualmente, no queremos que el selectbox lo pise al volver
-    topic = st.text_area("¿De qué hablamos hoy?", value=val_topic, placeholder="Ej: El lugar del padre...", key="user_topic")
+        c_wand, c_sel = st.columns([1, 5])
+        with c_wand:
+            if st.button("🪄", key="btn_magic_final"):
+                with st.spinner("Buscando nueva inspiración..."):
+                    st.session_state.disparadores = generar_temas_disparadores(GEMINI_KEY)
+                    st.session_state.reset_key += 1 # Cambia el ID para limpiar el selectbox
+                    st.rerun()
+            
+        with c_sel:
+            r_key = st.session_state.get('reset_key', 0)
+            # Usamos un key único para el selectbox de inspiración
+            tema_sugerido = st.selectbox(
+                "Inspiración del día:", 
+                ["Escribir manual..."] + st.session_state.disparadores, 
+                key=f"sel_v3_{r_key}"
+            )
     
-    c1, c2 = st.columns(2)
-    with c1: 
-        tone = st.selectbox("Tono", ["Empático", "Cuestionador", "Movilizador", "Socrático", "Inspirador", "Desafiante", "Didáctico", "Cercano", "Profesional"], key="user_tone")
-    with c2: 
-        post_format = st.selectbox("Formato", ["Post de Feed", "Story", "Reel (Guion)", "Carrusel (Ideas)"], key="user_format")
-
-    if st.button("✨ Generar 3 Ideas con Gemini", type="primary"):
-        with st.spinner("Reflexionando..."):
-            # Llamamos a la función (abajo te paso el arreglo para el error JSON)
-            st.session_state.opciones = generar_contenido_ia(topic, tone, post_format, GEMINI_KEY)
-
-    # --- OPCIONES GENERADAS POR IA ---
-    if st.session_state.get('opciones'):
-        st.markdown("### 💡 Elegí la que más te guste:")
+        # --- INPUTS CON MEMORIA (Uso de 'key') ---
+        # Al poner key="user_topic", Streamlit guarda el texto automáticamente
+        val_topic = "" if tema_sugerido == "Escribir manual..." else tema_sugerido
         
-        t_a, t_b, t_c = st.tabs(["Opción A", "Opción B", "Opción C"])
+        # Si el usuario escribió algo manualmente, no queremos que el selectbox lo pise al volver
+        topic = st.text_area("¿De qué hablamos hoy?", value=val_topic, placeholder="Ej: El lugar del padre...", key="user_topic")
         
-        for i, t in enumerate([t_a, t_b, t_c]):
-            key_opcion = f"opcion_{i+1}"
-            if key_opcion in st.session_state.opciones:
-                with t:
-                    st.write(st.session_state.opciones[key_opcion]['texto'])
-                    
-                    if st.button(f"✅ Usar Opción {chr(65+i)}", key=f"btn_elige_{i}"):
-                        st.session_state.generated_copy = st.session_state.opciones[key_opcion]['texto']
-                        if 'frase_placa' in st.session_state.opciones[key_opcion]:
-                            st.session_state.frase_para_placa = st.session_state.opciones[key_opcion]['frase_placa']
+        c1, c2 = st.columns(2)
+        with c1: 
+            tone = st.selectbox("Tono", ["Empático", "Cuestionador", "Movilizador", "Socrático", "Inspirador", "Desafiante", "Didáctico", "Cercano", "Profesional"], key="user_tone")
+        with c2: 
+            post_format = st.selectbox("Formato", ["Post de Feed", "Story", "Reel (Guion)", "Carrusel (Ideas)"], key="user_format")
+    
+        if st.button("✨ Generar 3 Ideas con Gemini", type="primary"):
+            with st.spinner("Reflexionando..."):
+                # Llamamos a la función (abajo te paso el arreglo para el error JSON)
+                st.session_state.opciones = generar_contenido_ia(topic, tone, post_format, GEMINI_KEY)
+    
+        # --- OPCIONES GENERADAS POR IA ---
+        if st.session_state.get('opciones'):
+            st.markdown("### 💡 Elegí la que más te guste:")
+            
+            t_a, t_b, t_c = st.tabs(["Opción A", "Opción B", "Opción C"])
+            
+            for i, t in enumerate([t_a, t_b, t_c]):
+                key_opcion = f"opcion_{i+1}"
+                if key_opcion in st.session_state.opciones:
+                    with t:
+                        st.write(st.session_state.opciones[key_opcion]['texto'])
                         
-                        st.session_state.editor_version += 1
-                        st.rerun()
+                        if st.button(f"✅ Usar Opción {chr(65+i)}", key=f"btn_elige_{i}"):
+                            st.session_state.generated_copy = st.session_state.opciones[key_opcion]['texto']
+                            if 'frase_placa' in st.session_state.opciones[key_opcion]:
+                                st.session_state.frase_para_placa = st.session_state.opciones[key_opcion]['frase_placa']
+                            
+                            st.session_state.editor_version += 1
+                            st.rerun()
 
         st.divider()
         st.subheader("2. Multimedia Visual")
@@ -603,6 +603,7 @@ with col_preview:
                         st.error(f"No se pudo publicar. El sistema dice: {resultado}")
     else:
         st.info("Terminá de armar tu post para habilitar el botón de publicar.")
+
 
 
 

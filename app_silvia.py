@@ -507,6 +507,13 @@ with tab3:
                                 m1.metric("❤️ Likes", post.get('like_count', 0))
                                 m2.metric("👥 Alcance", reach)
                                 m3.metric("💾 Guardados", saved)
+                                
+                                if reach > 0:
+                                    engagement = (post.get('like_count', 0) / reach) * 100
+                                    # Usamos st.info o un markdown para que resalte más que un texto simple
+                                    st.markdown(f"**📈 Tasa de Interacción:** `{engagement:.1f}%`")
+                                else:
+                                    st.caption("Esperando datos de alcance...")
                             st.divider()
 
 

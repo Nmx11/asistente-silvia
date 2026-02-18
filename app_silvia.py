@@ -140,6 +140,7 @@ def generar_contenido_ia(tema, tono, formato, api_key):
 
 def generar_temas_disparadores(api_key):
     import random
+    import re
     try:
         genai.configure(api_key=api_key)
         try:
@@ -151,24 +152,39 @@ def generar_temas_disparadores(api_key):
         enfoque = random.choice(estilos)
         semilla = random.randint(1, 9999)
 
-        # PROMPT CORREGIDO PARA LA VARITA MÁGICA (Textos cortos)
+        # PROMPT REFORZADO PARA EVITAR RELLENO
         prompt = f"""
-        Sos Silvia Baldi, experta en terapias holísticas. Generá 5 temas para posts de Instagram sobre {enfoque}.
-        ID Aleatorio: {semilla}.
+        Sos Silvia Baldi. Generá exactamente 5 frases breves y profundas sobre {enfoque}.
         
-        REGLAS:
-        - Frases profundas, poéticas y movilizadoras (ej: 'El síntoma como brújula del árbol').
-        - Máximo 7 palabras por frase. 
-        - Que resuenen con el alma de quien lee.
-        - NO uses números ni guiones. Escribí una frase limpia por línea.
+        REGLAS CRÍTICAS:
+        - SOLO devolvé las frases, una por línea. Cero texto adicional.
+        - NO escribas saludos ("Aquí tienes", "¡Absolutamente!").
+        - NO uses números (1., 2.), ni asteriscos (**), ni comillas.
+        - NO uses etiquetas como "Post 1:" o "Tema:".
+        - Cada frase debe tener máximo 8 palabras.
+        - Usá voseo argentino.
+        - ID de variación: {semilla}.
         """
         
-        # ACÁ ESTÁ EL CAMBIO DE TEMPERATURA PARA LOS DISPARADORES
         response = model.generate_content(
             prompt, 
             generation_config={"temperature": 0.8}
         )
-        temas = [line.strip() for line in response.text.split('\n') if len(line.strip()) > 5][:5]
+        
+        # LIMPIEZA ESTRICTA POR CÓDIGO
+        temas_brutos = response.text.split('\n')
+        temas_limpios = []
+        for line in temas_brutos:
+            # Saca asteriscos y comillas
+            l = line.replace('*', '').replace('"', '').strip()
+            # Saca "Post 1:", números al inicio, etc.
+            l = re.sub(r'^(Post \d+:?|Tema \d+:?|\d+[\.\-\)]\s*)', '', l, flags=re.IGNORECASE).strip()
+            
+            # Solo guarda si tiene sentido y no es charla de la IA
+            if len(l) > 5 and "Aquí tienes" not in l and "Absolutamente" not in l:
+                temas_limpios.append(l)
+        
+        temas = temas_limpios[:5]
         
         if len(temas) < 3: raise Exception("Fallback manual")
         return temas
@@ -369,21 +385,23 @@ with tab1:
                     st.session_state.reset_key += 1 # Cambia el ID para limpiar el selectbox
                     st.rerun()
             
-        with c_sel:
+       with c_sel:
             r_key = st.session_state.get('reset_key', 0)
-            # Usamos un key único para el selectbox de inspiración
+            # Quitamos el "Escribir manual..." y pasamos la lista limpia
             tema_sugerido = st.selectbox(
-                "Inspiración del día:", 
-                ["Escribir manual..."] + st.session_state.disparadores, 
+                "Inspiración del día (Elegí una o escribí abajo):", 
+                st.session_state.disparadores, 
                 key=f"sel_v3_{r_key}"
             )
     
         # --- INPUTS CON MEMORIA (Uso de 'key') ---
-        # Al poner key="user_topic", Streamlit guarda el texto automáticamente
-        val_topic = "" if tema_sugerido == "Escribir manual..." else tema_sugerido
-        
-        # Si el usuario escribió algo manualmente, no queremos que el selectbox lo pise al volver
-        topic = st.text_area("¿De qué hablamos hoy?", value=val_topic, placeholder="Ej: El lugar del padre...", key="user_topic")
+        # El cuadro se carga con el tema de la lista. Si querés otro, lo borrás y escribís ahí mismo.
+        topic = st.text_area(
+            "¿De qué hablamos hoy?", 
+            value=tema_sugerido, 
+            placeholder="Si preferís otro tema, borrá esto y escribí el tuyo acá...", 
+            key="user_topic"
+        )
         
         c1, c2 = st.columns(2)
         with c1: 
@@ -393,7 +411,7 @@ with tab1:
     
         if st.button("✨ Generar 3 Ideas con Gemini", type="primary"):
             with st.spinner("Reflexionando..."):
-                # Llamamos a la función (abajo te paso el arreglo para el error JSON)
+                # Llamamos a la función con el topic actualizado
                 st.session_state.opciones = generar_contenido_ia(topic, tone, post_format, GEMINI_KEY)
     
         # --- OPCIONES GENERADAS POR IA ---
@@ -603,6 +621,7 @@ with col_preview:
                         st.error(f"No se pudo publicar. El sistema dice: {resultado}")
     else:
         st.info("Terminá de armar tu post para habilitar el botón de publicar.")
+
 
 
 

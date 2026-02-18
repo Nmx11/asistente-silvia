@@ -384,6 +384,7 @@ with st.sidebar:
     st.subheader("Estado de Meta")
     st.write("⏳ Esperando desbloqueo...")
 
+
 # 5. UI PRINCIPAL
 st.title("🌿 Universo Vivencial | CM Suite")
 tab1, tab2, tab3 = st.tabs(["📝 Crear Contenido", "📅 Calendario", "📊 Rendimiento"])
@@ -460,61 +461,131 @@ with tab1:
                             st.session_state.editor_version += 1
                             st.rerun()
 with tab3:
-    st.header("📊 Análisis de Estrategia")
-    st.write("Datos reales de tu Instagram.")
+    st.header("📊 Rendimiento de Posts")
+    
+    # Intentamos obtener las métricas usando tus secretos configurados
+    res_metricas, error_msg = obtener_metricas_instagram(st.secrets["META_TOKEN"], st.secrets["IG_ID"])
 
-    # Usamos las variables que definimos arriba
-    if META_TOKEN == "" or IG_ID == "" or IG_ID == "None":
-        st.error("❌ No se detectan las credenciales.")
-        st.info(f"Estado actual: Token {'Detectado' if META_TOKEN else 'Faltante'} | ID {'Detectado' if IG_ID else 'Faltante'}")
-    else:
-        if st.button("🔄 Cargar Estadísticas Reales", key="btn_refresh_metrics"):
-            with st.spinner("Conectando con Meta..."):
-                metricas, error = obtener_metricas_instagram(META_TOKEN, IG_ID)
+    if res_metricas:
+        # --- 1. ANÁLISIS GLOBAL DE HORARIOS ---
+        st.subheader("⏰ ¿Cuándo conectan más tus seguidores?")
+        
+        dict_horarios = {}
+        for p in res_metricas:
+            try:
+                hora_str = p.get('timestamp').split('T')[1].split(':')[0]
+                hora = int(hora_str)
                 
-                if error:
-                    st.error(f"Error de Meta: {error}")
-                elif metricas:
-                    st.success(f"¡Se cargaron {len(metricas)} publicaciones!")
-                    for post in metricas:
-                        with st.container():
-                            col_img, col_txt = st.columns([1, 2])
-                            # Busca esta línea en tu código y asegúrate de que esté así:
-                        with col_img:
-                            # Lógica inteligente para elegir la imagen
-                            if post.get('media_type') == 'VIDEO' or post.get('media_type') == 'REEL':
-                                url_a_mostrar = post.get('thumbnail_url')
-                            else:
-                                url_a_mostrar = post.get('media_url')
-                            
-                            if url_a_mostrar:
-                                # Forzamos el renderizado con un truco de HTML si st.image falla
-                                st.image(url_a_mostrar, use_container_width=True)
-                            else:
-                                st.warning("🖼️ No disponible")
-                            with col_txt:
-                                caption = post.get('caption', 'Sin texto')
-                                st.markdown(f"**Post:** {caption[:100]}...")
-                                
-                                # Extraer métricas
-                                reach, saved = 0, 0
-                                if 'insights' in post:
-                                    for ins in post['insights']['data']:
-                                        if ins['name'] == 'reach': reach = ins['values'][0]['value']
-                                        if ins['name'] == 'saved': saved = ins['values'][0]['value']
-                                
-                                m1, m2, m3 = st.columns(3)
-                                m1.metric("❤️ Likes", post.get('like_count', 0))
-                                m2.metric("👥 Alcance", reach)
-                                m3.metric("💾 Guardados", saved)
-                                
-                                if reach > 0:
-                                    engagement = (post.get('like_count', 0) / reach) * 100
-                                    # Usamos st.info o un markdown para que resalte más que un texto simple
-                                    st.markdown(f"**📈 Tasa de Interacción:** `{engagement:.1f}%`")
-                                else:
-                                    st.caption("Esperando datos de alcance...")
-                            st.divider()
+                alcance_p = 0
+                if 'insights' in p:
+                    for ins in p['insights']['data']:
+                        if ins['name'] == 'reach': 
+                            alcance_p = ins['values'][0]['value']
+                
+                divisor = alcance_p if alcance_p > 0 else 1
+                eng_p = (p.get('like_count', 0) / divisor) * 100
+                
+                label = f"{hora}:00"
+                if label not in dict_horarios: 
+                    dict_horarios[label] = []
+                dict_horarios[label].append(eng_p)
+            except Exception:
+                continue
+
+        if dict_horarios:
+            promedios = {h: sum(lista)/len(lista) for h, lista in dict_horarios.items()}
+            data_ordenada = dict(sorted(promedios.items()))
+            st.bar_chart(data_ordenada)
+            
+            mejor_h = max(promedios, key=promedios.get)
+            st.success(f"💡 **Estrategia sugerida:** Tus posts rinden mejor a las **{mejor_h} hs**.")
+        else:
+            st.info("Publicá más contenido para ver el análisis de horarios.")
+        
+        st.divider()
+
+        # --- 2. DETALLE INDIVIDUAL DE CADA POST ---
+        st.subheader("📝 Análisis por Publicación")
+        
+        for post in res_metricas:
+            col_img, col_info = st.columns([1, 2])
+            
+            with col_img:
+                url_foto = post.get('thumbnail_url') if post.get('media_type') in ['VIDEO', 'REEL'] else post.get('media_url')
+                if url_foto:
+                    st.image(url_foto, use_container_width=True)
+                else:
+                    st.warning("🖼️ No disponible")
+            
+            with col_info:
+                texto = post.get('caption', 'Sin texto')
+                hora_p = post.get('timestamp').split('T')[1][:5]
+                st.markdown(f"**Post:** {texto[:150]}...")
+                st.caption(f"🕒 Publicado a las {hora_p} hs")
+                
+                reach, saved = 0, 0
+                if 'insights' in post:
+                    for ins in post['insights']['data']:
+                        if ins['name'] == 'reach': reach = ins['values'][0]['value']
+                        if ins['name'] == 'saved': saved = ins['values'][0]['value']
+                
+                m1, m2, m3 = st.columns(3)
+                m1.metric("❤️ Likes", post.get('like_count', 0))
+                m2.metric("👥 Alcance", reach)
+                m3.metric("💾 Guardados", saved)
+                
+                if reach > 0:
+                    engagement = (post.get('like_count', 0) / reach) * 100
+                    st.markdown(f"📈 **Tasa de Interacción:** `{engagement:.1f}%`")
+            st.divider()
+        else:
+            # Este else ahora está correctamente alineado con 'if res_metricas:'
+            st.error(f"No se pudieron cargar los datos de Instagram: {error_msg}")
+
+        # --- 2. DETALLE INDIVIDUAL DE CADA POST (TU LISTA ACTUAL) ---
+        st.subheader("📝 Análisis por Publicación")
+        
+        for post in metricas:
+            col_img, col_info = st.columns([1, 2])
+            
+            with col_img:
+                # Lógica para mostrar miniatura si es video/reel o imagen directa
+                url_foto = post.get('thumbnail_url') if post.get('media_type') in ['VIDEO', 'REEL'] else post.get('media_url')
+                if url_foto:
+                    st.image(url_foto, use_container_width=True)
+                else:
+                    st.warning("🖼️ No disponible")
+            
+            with col_info:
+                # Texto del post y hora exacta de publicación
+                texto = post.get('caption', 'Sin texto')
+                hora_p = post.get('timestamp').split('T')[1][:5]
+                st.markdown(f"**Post:** {texto[:150]}...")
+                st.caption(f"🕒 Publicado a las {hora_p} hs")
+                
+                # Extraer métricas de Insights de Meta
+                reach, saved = 0, 0
+                if 'insights' in post:
+                    for ins in post['insights']['data']:
+                        if ins['name'] == 'reach': reach = ins['values'][0]['value']
+                        if ins['name'] == 'saved': saved = ins['values'][0]['value']
+                
+                # Mostrar métricas principales
+                m1, m2, m3 = st.columns(3)
+                m1.metric("❤️ Likes", post.get('like_count', 0))
+                m2.metric("👥 Alcance", reach)
+                m3.metric("💾 Guardados", saved)
+                
+                # Cálculo de la Tasa de Interacción (Engagement)
+                if reach > 0:
+                    engagement = (post.get('like_count', 0) / reach) * 100
+                    st.markdown(f"📈 **Tasa de Interacción:** `{engagement:.1f}%`")
+                else:
+                    st.caption("Esperando datos de alcance...")
+            
+            st.divider()
+    else:
+        st.error("No se pudieron cargar los datos de Instagram. Verificá tu Token.")
 
 
         st.divider()

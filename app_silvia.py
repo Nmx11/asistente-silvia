@@ -13,9 +13,17 @@ import io
 GEMINI_KEY = st.secrets.get("GEMINI_KEY", "")
 PIXABAY_KEY = st.secrets.get("PIXABAY_KEY", "")
 IMGBB_KEY = st.secrets.get("IMGBB_KEY", "")
-# Estos los dejamos listos para cuando se te desbloqueen
-META_TOKEN = st.secrets.get("META_ACCESS_TOKEN", "")
-IG_ID = st.secrets.get("IG_USER_ID", "")
+META_TOKEN = st.secrets["META_TOKEN"]
+IG_ID = st.secrets["IG_ID"]
+
+def test_debug_token(access_token):
+    url = f"https://graph.facebook.com/debug_token"
+    params = {
+        "input_token": access_token,
+        "access_token": access_token  # Sí, se pone dos veces aquí
+    }
+    r = requests.get(url, params=params)
+    return r.json()
 
 # 1. CONFIGURACIÓN E INTERFAZ
 st.set_page_config(page_title="Universo Vivencial | CM Suite", page_icon="🌿", layout="wide")
@@ -346,6 +354,24 @@ def agregar_texto_a_imagen(url_imagen, texto, posicion="Centro", color_hex="#000
         return img_byte_arr.getvalue()
     except Exception as e:
         return None
+    
+
+def obtener_metricas_instagram(access_token, ig_user_id):
+    # Endpoint para traer los últimos media del usuario
+    url = f"https://graph.facebook.com/v19.0/{ig_user_id}/media"
+    params = {
+        "fields": "id,caption,media_type,media_url,timestamp,like_count,comments_count,insights.metric(impressions,reach,saved)",
+        "access_token": access_token,
+        "limit": 10
+    }
+    try:
+        r = requests.get(url, params=params)
+        data = r.json()
+        if 'error' in data:
+            return None, data['error'].get('message', 'Error desconocido')
+        return data.get('data', []), None
+    except Exception as e:
+        return None, str(e)
 
 # 4. SIDEBAR (CONFIGURACIÓN)
 with st.sidebar:
@@ -360,7 +386,7 @@ with st.sidebar:
 
 # 5. UI PRINCIPAL
 st.title("🌿 Universo Vivencial | CM Suite")
-tab1, tab2 = st.tabs(["📝 Crear Contenido", "📅 Calendario"])
+tab1, tab2, tab3 = st.tabs(["📝 Crear Contenido", "📅 Calendario", "📊 Rendimiento"])
 
 with tab1:
     col_input, col_preview = st.columns([1, 1])
@@ -433,6 +459,45 @@ with tab1:
                             
                             st.session_state.editor_version += 1
                             st.rerun()
+with tab3:
+    st.header("📊 Análisis de Estrategia")
+    st.write("Datos reales de tu Instagram.")
+
+    # Usamos las variables que definimos arriba
+    if META_TOKEN == "" or IG_ID == "" or IG_ID == "None":
+        st.error("❌ No se detectan las credenciales.")
+        st.info(f"Estado actual: Token {'Detectado' if META_TOKEN else 'Faltante'} | ID {'Detectado' if IG_ID else 'Faltante'}")
+    else:
+        if st.button("🔄 Cargar Estadísticas Reales", key="btn_refresh_metrics"):
+            with st.spinner("Conectando con Meta..."):
+                metricas, error = obtener_metricas_instagram(META_TOKEN, IG_ID)
+                
+                if error:
+                    st.error(f"Error de Meta: {error}")
+                elif metricas:
+                    st.success(f"¡Se cargaron {len(metricas)} publicaciones!")
+                    for post in metricas:
+                        with st.container():
+                            col_img, col_txt = st.columns([1, 2])
+                            with col_img:
+                                st.image(post.get('media_url'), use_container_width=True)
+                            with col_txt:
+                                caption = post.get('caption', 'Sin texto')
+                                st.markdown(f"**Post:** {caption[:100]}...")
+                                
+                                # Extraer métricas
+                                reach, saved = 0, 0
+                                if 'insights' in post:
+                                    for ins in post['insights']['data']:
+                                        if ins['name'] == 'reach': reach = ins['values'][0]['value']
+                                        if ins['name'] == 'saved': saved = ins['values'][0]['value']
+                                
+                                m1, m2, m3 = st.columns(3)
+                                m1.metric("❤️ Likes", post.get('like_count', 0))
+                                m2.metric("👥 Alcance", reach)
+                                m3.metric("💾 Guardados", saved)
+                            st.divider()
+
 
         st.divider()
         st.subheader("2. Multimedia Visual")
@@ -531,26 +596,28 @@ with col_preview:
     st.subheader("📱 Vista Previa")
     
     # --- 1. INICIALIZACIÓN DE SEGURIDAD ---
-    # Esto asegura que NADA de lo que se use en el HTML falte
     img_url_base = st.session_state.get('selected_img', "https://via.placeholder.com/400")
     img_a_mostrar = img_url_base
     img_final_para_descargar = None
     
+    # Recuperamos la frase desde el session_state para evitar el NameError
+    frase_placa_segura = st.session_state.get('frase_para_placa', "")
+    
     # Si la variable del copy no existe todavía, le ponemos un texto por defecto
-    texto_copy_final = st.session_state.get('final_caption', "Aquí aparecerá tu copy...")
+    texto_copy_final = st.session_state.get('generated_copy', "Aquí aparecerá tu copy...")
     
     # --- 2. PROCESAMIENTO DE IMAGEN ---
-    if img_url_base and texto_en_foto.strip():
-        # Usamos un try/except interno para que si falla la imagen, no muera la app
+    # Usamos frase_placa_segura en lugar de texto_en_foto
+    if img_url_base and frase_placa_segura.strip():
         try:
             img_bytes = agregar_texto_a_imagen(
                 img_url_base, 
-                texto_en_foto, 
-                pos_elegida, 
-                color_placa, 
-                tam_letra, 
-                transp_placa, 
-                color_texto_placa
+                frase_placa_segura, # <--- Cambio clave aquí
+                st.session_state.get('pos_placa', "Centro"), 
+                st.session_state.get('col_fondo_placa', "#000000"), 
+                st.session_state.get('tam_letra_placa', 12), 
+                st.session_state.get('opacidad_placa', 180), 
+                st.session_state.get('col_txt_placa', "#FFFFFF")
             )
             if img_bytes:
                 import base64
@@ -558,7 +625,7 @@ with col_preview:
                 img_a_mostrar = f"data:image/jpeg;base64,{b64}"
                 img_final_para_descargar = img_bytes
         except Exception as e:
-            st.error("Error al procesar la imagen.")
+            st.error(f"Error al procesar la imagen: {e}")
 
     # --- 3. RENDERIZADO (Ahora con variables seguras) ---
     # Usamos .get() si viene de session_state o la variable local segura
@@ -621,65 +688,3 @@ with col_preview:
                         st.error(f"No se pudo publicar. El sistema dice: {resultado}")
     else:
         st.info("Terminá de armar tu post para habilitar el botón de publicar.")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -385,7 +385,7 @@ with tab1:
                     st.session_state.reset_key += 1 # Cambia el ID para limpiar el selectbox
                     st.rerun()
             
-       with c_sel:
+        with c_sel:
             r_key = st.session_state.get('reset_key', 0)
             # Quitamos el "Escribir manual..." y pasamos la lista limpia
             tema_sugerido = st.selectbox(
@@ -621,6 +621,7 @@ with col_preview:
                         st.error(f"No se pudo publicar. El sistema dice: {resultado}")
     else:
         st.info("Terminá de armar tu post para habilitar el botón de publicar.")
+
 
 
 

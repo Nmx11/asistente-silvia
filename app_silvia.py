@@ -360,7 +360,7 @@ def obtener_metricas_instagram(access_token, ig_user_id):
     # Endpoint para traer los últimos media del usuario
     url = f"https://graph.facebook.com/v19.0/{ig_user_id}/media"
     params = {
-        "fields": "id,caption,media_type,media_url,timestamp,like_count,comments_count,insights.metric(impressions,reach,saved)",
+        "fields": "id,caption,media_type,media_url,thumbnail_url,timestamp,like_count,comments_count,insights.metric(impressions,reach,saved)",
         "access_token": access_token,
         "limit": 10
     }
@@ -479,8 +479,19 @@ with tab3:
                     for post in metricas:
                         with st.container():
                             col_img, col_txt = st.columns([1, 2])
-                            with col_img:
-                                st.image(post.get('media_url'), use_container_width=True)
+                            # Busca esta línea en tu código y asegúrate de que esté así:
+                        with col_img:
+                            # Lógica inteligente para elegir la imagen
+                            if post.get('media_type') == 'VIDEO' or post.get('media_type') == 'REEL':
+                                url_a_mostrar = post.get('thumbnail_url')
+                            else:
+                                url_a_mostrar = post.get('media_url')
+                            
+                            if url_a_mostrar:
+                                # Forzamos el renderizado con un truco de HTML si st.image falla
+                                st.image(url_a_mostrar, use_container_width=True)
+                            else:
+                                st.warning("🖼️ No disponible")
                             with col_txt:
                                 caption = post.get('caption', 'Sin texto')
                                 st.markdown(f"**Post:** {caption[:100]}...")

@@ -54,7 +54,6 @@ def generar_contenido_ia(tema, tono, formato, api_key):
         except:
             model = genai.GenerativeModel('models/gemini-2.5-flash')
         
-        # MANTENEMOS TUS 9 TONOS ORIGINALES
         tonos_dict = {
             "Empático": "Priorizá la validación emocional. Usá frases como 'Te entiendo profundamente'.",
             "Cuestionador": "Usá preguntas retóricas potentes que inviten a la introspección profunda.",
@@ -68,35 +67,46 @@ def generar_contenido_ia(tema, tono, formato, api_key):
         }
         instruccion_tono = tonos_dict.get(tono, f"Mantené un tono {tono}.")
 
+        # --- LÓGICA DIFERENCIADA SEGÚN FORMATO ---
         if "Story" in formato:
             instrucciones_especificas = """
-            - FORMATO STORY: Texto breve y poético.
-            - STICKER: Sugerí un sticker (Encuesta, Caja de preguntas, etc).
-            - HASHTAGS: No incluir.
+            - FORMATO STORY: Texto muy breve (máximo 40 palabras). Poético y al grano.
+            - INTERACCIÓN: Sugerí obligatoriamente un sticker (Encuesta SI/NO, Caja de preguntas, o Slider).
+            - NO uses hashtags.
             """
         else:
             instrucciones_especificas = """
-            - FORMATO POST: Texto profundo (3+ párrafos).
-            - STICKER: NO incluir (dejar el campo vacío o "No aplica").
-            - HASHTAGS: Incluir exactamente 5 al final, precedidos por DOS saltos de línea para que no estén pegados al texto.
-            #SilviaBaldi #UniversoVivencial #ConstelacionesFamiliares #SanacionHolistica #BienestarInterior
+            - FORMATO POST/REEL: Copy profundo y extenso. Mínimo 3 párrafos generosos.
+            - ESTRUCTURA: Gancho potente -> Desarrollo con sabiduría -> Reflexión final.
+            - HASHTAGS: Incluí al final exactamente estos 5: #SilviaBaldi #UniversoVivencial #ConstelacionesFamiliares #SanacionHolistica #BienestarInterior
             """
 
         prompt = f"""
-        Sos Silvia Baldi (voseo argentino). Escribí sobre: '{tema}'.
+        Sos Silvia Baldi, terapeuta holística (voseo argentino). Escribí sobre: '{tema}'.
         Tono: {instruccion_tono}. Usá metáforas de raíces e hilos invisibles.
+        
+        REQUERIMIENTOS:
         {instrucciones_especificas}
         
-        Respondé ÚNICAMENTE con un JSON:
+        Respondé ÚNICAMENTE con un JSON puro:
         {{
-          "opcion_1": {{"texto": "copy...", "sticker": "Idea de sticker (solo si es Story)", "frase_placa": "Frase para la foto"}},
-          "opcion_2": {{"texto": "copy...", "sticker": "Idea de sticker (solo si es Story)", "frase_placa": "Frase para la foto"}},
-          "opcion_3": {{"texto": "copy...", "sticker": "Idea de sticker (solo si es Story)", "frase_placa": "Frase para la foto"}}
+          "opcion_1": {{"texto": "copy completo...", "sticker": "Sticker sugerido y texto", "frase_placa": "Frase corta para placa"}},
+          "opcion_2": {{"texto": "copy completo...", "sticker": "Sticker sugerido y texto", "frase_placa": "Frase corta para placa"}},
+          "opcion_3": {{"texto": "copy completo...", "sticker": "Sticker sugerido y texto", "frase_placa": "Frase corta para placa"}}
         }}
         """
-        response = model.generate_content(prompt, generation_config={"response_mime_type": "application/json", "temperature": 0.8})
-        return json.loads(response.text, strict=False)
+        
+        response = model.generate_content(prompt, generation_config={"temperature": 0.8})
+        
+        # Limpieza de Markdown si Gemini envía ```json ... ```
+        raw_text = response.text.strip()
+        if raw_text.startswith("```"):
+            raw_text = raw_text.split("```")[1]
+            if raw_text.startswith("json"): raw_text = raw_text[4:]
+            
+        return json.loads(raw_text.strip(), strict=False)
     except Exception as e:
+        st.error(f"Error técnico: {e}")
         return None
         
 def generar_temas_disparadores(api_key):
@@ -268,40 +278,33 @@ with tab1:
                 st.session_state.opciones = generar_contenido_ia(topic, tone, post_format, GEMINI_KEY)
     
         # Reemplazá el bloque de las pestañas de opciones por este:
-        # Buscá el bloque de las pestañas (tabs) y reemplazalo por este:
-if st.session_state.get('opciones'):
-    st.markdown("### 💡 Elegí la que más te guste:")
-    t_a, t_b, t_c = st.tabs(["Opción A", "Opción B", "Opción C"])
-    for i, t in enumerate([t_a, t_b, t_c]):
-        key_opcion = f"opcion_{i+1}"
-        if key_opcion in st.session_state.opciones:
-            opc = st.session_state.opciones[key_opcion]
-            with t:
-                # Mostramos el texto del post
-                st.write(opc['texto'])
-                
-                # --- MEJORA: Solo muestra sticker si no está vacío y no dice "no aplica" ---
-                sticker_info = opc.get('sticker', "").lower()
-                if sticker_info and "no aplica" not in sticker_info and "story" in post_format.lower():
-                    st.info(f"✨ **Sticker Recomendado:** {opc['sticker']}")
-                
-                if st.button(f"✅ Usar Opción {chr(65+i)}", key=f"btn_elige_{i}"):
-                    st.session_state.generated_copy = opc['texto']
-                    st.session_state.frase_para_placa = opc.get('frase_placa', '')
-                    st.session_state.editor_version += 1
-                    st.rerun()
+        if st.session_state.get('opciones'):
+            st.markdown("### 💡 Elegí la que más te guste:")
+            t_a, t_b, t_c = st.tabs(["Opción A", "Opción B", "Opción C"])
+            for i, t in enumerate([t_a, t_b, t_c]):
+                key_opcion = f"opcion_{i+1}"
+                if key_opcion in st.session_state.opciones:
+                    opc = st.session_state.opciones[key_opcion]
+                    with t:
+                        st.write(opc.get('texto', 'Error: No se generó texto.'))
+                        
+                        # Mostramos el sticker si es una Story
+                        if opc.get('sticker') and opc.get('sticker') != "Tipo de sticker":
+                            st.info(f"✨ **Sticker Recomendado:** {opc['sticker']}")
+                        
+                        if st.button(f"✅ Usar Opción {chr(65+i)}", key=f"btn_elige_{i}"):
+                            st.session_state.generated_copy = opc.get('texto', '')
+                            st.session_state.frase_para_placa = opc.get('frase_placa', '')
+                            st.session_state.editor_version += 1
+                            st.rerun()
 
         st.divider()
         st.subheader("2. Multimedia Visual")
-
-        # Agregamos 'key' para evitar el error de DuplicateElementId
-        busqueda = st.text_input("🎨 ¿Qué imagen buscamos?", key="input_busqueda_pixabay")
-        
+        busqueda = st.text_input("🎨 ¿Qué imagen buscamos?")
         col_btn1, col_btn2 = st.columns(2)
         with col_btn1:
-            if st.button("🔍 Buscar en Pixabay", key="btn_search_pix"):
-                if busqueda:
-                    st.session_state.search_results, _ = buscar_imagenes_pixabay(busqueda, PIXABAY_KEY, formato=post_format)
+            if st.button("🔍 Buscar en Pixabay") and busqueda:
+                st.session_state.search_results, _ = buscar_imagenes_pixabay(busqueda, PIXABAY_KEY, formato=post_format)
         with col_btn2:
             st.markdown(f'<a href="https://ar.pinterest.com/search/pins/?q={busqueda.replace(" ", "%20")}" target="_blank"><button style="width:100%; border-radius:12px; background-color:#E60023; color:white; border:none; padding:15px; cursor:pointer; font-weight:bold;">📌 Buscar en Pinterest ↗️</button></a>', unsafe_allow_html=True)
 
@@ -316,12 +319,10 @@ if st.session_state.get('opciones'):
 
         col_url, col_file = st.columns(2)
         with col_url:
-            # Key única también aquí
-            url_manual = st.text_input("🔗 Pegá link directo de imagen:", key="input_url_manual")
-            if st.button("🖼️ Cargar desde link", key="btn_load_url"):
-                if url_manual:
-                    st.session_state.selected_img = url_manual
-                    st.rerun()
+            url_manual = st.text_input("🔗 Pegá link directo de imagen:")
+            if st.button("🖼️ Cargar desde link") and url_manual:
+                st.session_state.selected_img = url_manual
+                st.rerun()
         with col_file:
             archivo_subido = st.file_uploader("📁 O subí tu propia foto:", type=['jpg', 'png'])
             if archivo_subido:
@@ -445,9 +446,6 @@ with tab3:
                 st.divider()
         else:
             st.error(f"Error cargando datos de Meta: {error_msg}")
-
-
-
 
 
 

@@ -54,7 +54,7 @@ def generar_contenido_ia(tema, tono, formato, api_key):
         except:
             model = genai.GenerativeModel('models/gemini-2.5-flash')
         
-        # MANTENEMOS TUS 9 TONOS ORIGINALES INTACTOS
+        # MANTENEMOS TUS 9 TONOS ORIGINALES
         tonos_dict = {
             "Empático": "Priorizá la validación emocional. Usá frases como 'Te entiendo profundamente'.",
             "Cuestionador": "Usá preguntas retóricas potentes que inviten a la introspección profunda.",
@@ -68,56 +68,53 @@ def generar_contenido_ia(tema, tono, formato, api_key):
         }
         instruccion_tono = tonos_dict.get(tono, f"Mantené un tono {tono}.")
 
-        # NUEVA LÓGICA DE FORMATO STORY
+        # MEJORA: Instrucciones específicas para Engagement en Stories
         if "Story" in formato:
             instrucciones_formato = """
-            - Formato Story: Texto brevísmo (máximo 40 palabras). 
-            - Estilo CM: Una frase semilla potente y una invitación a la acción.
-            - Interacción: DEBES sugerir un sticker interactivo específico (ej: Encuesta SI/NO, Caja de preguntas, Slider de corazón o Link de reserva).
+            - Formato Story: Texto brevísmo (max 40 palabras).
+            - Estilo: Pensamiento semilla poético + Llamado a la interacción.
+            - Stickers: Sugerí OBLIGATORIAMENTE un sticker de interacción (Encuesta SI/NO, Caja de Preguntas, Slider de Corazón o Link de Reservas).
             - NO uses hashtags.
             """
         else:
             instrucciones_formato = """
-            - Formato Post/Reel: Copy profundo con gancho y desarrollo.
+            - Formato Post/Reel: Copy profundo.
             - OBLIGATORIO 5 hashtags: #SilviaBaldi #UniversoVivencial #ConstelacionesFamiliares #SanacionHolistica #BienestarInterior.
             """
 
         prompt = f"""
-        Sos Silvia Baldi (voseo argentino). Escribí sobre: '{tema}'.
+        Sos Silvia Baldi (voseo argentino). Escribí un contenido sobre: '{tema}'.
         Tono: {instruccion_tono}. Usá metáforas de raíces e hilos invisibles.
         FORMATO: {instrucciones_formato}
-        
         Respondé ÚNICAMENTE con un JSON:
         {{
-          "opcion_1": {{"texto": "copy...", "sticker": "Tipo de sticker e instrucción", "frase_placa": "Frase para la foto"}},
-          "opcion_2": {{"texto": "copy...", "sticker": "Tipo de sticker e instrucción", "frase_placa": "Frase para la foto"}},
-          "opcion_3": {{"texto": "copy...", "sticker": "Tipo de sticker e instrucción", "frase_placa": "Frase para la foto"}}
+          "opcion_1": {{"texto": "copy...", "sticker": "Tipo de sticker (ej: Encuesta '¿Sentís esto?' SI/NO)", "frase_placa": "Frase para la foto"}},
+          "opcion_2": {{"texto": "copy...", "sticker": "Tipo de sticker (ej: Caja de preguntas '¿Qué te duele hoy?')", "frase_placa": "Frase para la foto"}},
+          "opcion_3": {{"texto": "copy...", "sticker": "Tipo de sticker (ej: Link 'Hacé click para tu sesión')", "frase_placa": "Frase para la foto"}}
         }}
         """
         response = model.generate_content(prompt, generation_config={"response_mime_type": "application/json", "temperature": 0.8})
         return json.loads(response.text, strict=False)
     except Exception as e:
         return None
-
+        
 def generar_temas_disparadores(api_key):
     import re
     try:
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel('models/gemini-2.0-flash')
-        
         prompt = "Sos Silvia Baldi. Generá 5 frases cortas sobre Constelaciones o terapias holísticas. SOLO las frases, sin introducciones ni números."
         response = model.generate_content(prompt)
-        
         temas_limpios = []
         for line in response.text.split('\n'):
             l = line.replace('*', '').replace('"', '').strip()
             l = re.sub(r'^(Post \d+:?|Tema \d+:?|\d+[\.\-\)]\s*)', '', l, flags=re.IGNORECASE).strip()
-            # Filtramos cualquier frase de relleno de la IA
+            # Filtro estricto: eliminamos frases de charla de la IA
             if len(l) > 5 and not any(x in l.lower() for x in ["aquí", "aqui", "tienes", "tenés", "frases"]):
                 temas_limpios.append(l)
         return temas_limpios[:5]
     except:
-        return ["Sanar lealtades invisibles", "El orden en el amor", "Tu sensibilidad es tu guía", "Honrá tu sistema familiar", "Mirá lo que te une al clan"]
+        return ["Sanar lealtades invisibles", "El orden en el amor", "Honrá tu sistema familiar"]
 
 def buscar_imagenes_pixabay(query, api_key, formato="Post", page=1):
     try:
@@ -140,9 +137,9 @@ def agregar_texto_a_imagen(url_imagen, texto, posicion="Centro", color_hex="#000
         draw = ImageDraw.Draw(txt_layer)
         ancho, alto = img.size
         
-        # Ajuste: Divisor 350 para que el rango sea más suave y el mínimo más chico
-        font_size = int(alto * (tamano_prop / 350)) 
-        if font_size < 14: font_size = 14 # Piso mínimo reducido
+        # Divisor 320 para que el tamaño 12 sea el "punto dulce"
+        font_size = int(alto * (tamano_prop / 320)) 
+        if font_size < 18: font_size = 18 
 
         font = None
         rutas_fuentes = ["/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"]
@@ -153,38 +150,31 @@ def agregar_texto_a_imagen(url_imagen, texto, posicion="Centro", color_hex="#000
             except: continue
         if not font: font = ImageFont.load_default()
 
-        # ... (resto de la lógica de dibujo igual para no romper nada) ...
+        # ... (Mantener lógica de textwrap y dibujo de rectángulos igual que antes) ...
         texto_con_saltos = texto.replace("/", "\n")
         ancho_max_bloque = ancho * 0.85 
-        chars_por_linea = max(8, int(ancho_max_bloque / (font_size * 0.55)))
-        
+        chars_por_linea = max(8, int(ancho_max_bloque / (font_size * 0.52)))
         lineas = []
         for parrafo in texto_con_saltos.split('\n'):
             lineas.extend(textwrap.wrap(parrafo, width=chars_por_linea))
-        
         espaciado = int(font_size * 0.25)
         alto_total_texto = len(lineas) * (font_size + espaciado)
-        
-        margen_v = alto * 0.10
-        y_inicial = margen_v if posicion == "Arriba" else (alto - alto_total_texto - margen_v - 20 if posicion == "Abajo" else (alto - alto_total_texto) / 2)
-
-        max_w = 0
+        margen_vertical = alto * 0.10
+        y_inicial = margen_vertical if posicion == "Arriba" else (alto - alto_total_texto - margen_vertical - 20 if posicion == "Abajo" else (alto - alto_total_texto) / 2)
+        max_w_real = 0
         for linea in lineas:
             bbox = draw.textbbox((0, 0), linea, font=font)
-            max_w = max(max_w, bbox[2] - bbox[0])
-
+            max_w_real = max(max_w_real, bbox[2] - bbox[0])
         h_bg = color_hex.lstrip('#')
         rgb_bg = tuple(int(h_bg[i:i+2], 16) for i in (0, 2, 4))
         pad_h, pad_v = 30, 20
-        draw.rectangle([(ancho - max_w)/2 - pad_h, y_inicial - pad_v, (ancho + max_w)/2 + pad_h, y_inicial + alto_total_texto + pad_v], fill=rgb_bg + (opacidad,))
-
+        draw.rectangle([(ancho - max_w_real)/2 - pad_h, y_inicial - pad_v, (ancho + max_w_real)/2 + pad_h, y_inicial + alto_total_texto + pad_v], fill=rgb_bg + (opacidad,))
         y_cursor = y_inicial
         for linea in lineas:
             bbox = draw.textbbox((0, 0), linea, font=font)
             w_linea = bbox[2] - bbox[0]
             draw.text(((ancho - w_linea) / 2, y_cursor), linea, font=font, fill=color_texto)
             y_cursor += font_size + espaciado
-
         out = Image.alpha_composite(img, txt_layer).convert("RGB")
         img_byte_arr = io.BytesIO()
         out.save(img_byte_arr, format='JPEG', quality=95)
@@ -276,17 +266,24 @@ with tab1:
             with st.spinner("Reflexionando..."):
                 st.session_state.opciones = generar_contenido_ia(topic, tone, post_format, GEMINI_KEY)
     
+        # Reemplazá el bloque de las pestañas de opciones por este:
         if st.session_state.get('opciones'):
             st.markdown("### 💡 Elegí la que más te guste:")
             t_a, t_b, t_c = st.tabs(["Opción A", "Opción B", "Opción C"])
             for i, t in enumerate([t_a, t_b, t_c]):
                 key_opcion = f"opcion_{i+1}"
                 if key_opcion in st.session_state.opciones:
+                    opc = st.session_state.opciones[key_opcion]
                     with t:
-                        st.write(st.session_state.opciones[key_opcion]['texto'])
+                        st.write(opc['texto'])
+                        
+                        # --- NUEVO: Muestra el sticker si existe ---
+                        if opc.get('sticker'):
+                            st.info(f"✨ **Sticker Recomendado:** {opc['sticker']}")
+                        
                         if st.button(f"✅ Usar Opción {chr(65+i)}", key=f"btn_elige_{i}"):
-                            st.session_state.generated_copy = st.session_state.opciones[key_opcion]['texto']
-                            st.session_state.frase_para_placa = st.session_state.opciones[key_opcion].get('frase_placa', '')
+                            st.session_state.generated_copy = opc['texto']
+                            st.session_state.frase_para_placa = opc.get('frase_placa', '')
                             st.session_state.editor_version += 1
                             st.rerun()
 
@@ -438,6 +435,7 @@ with tab3:
                 st.divider()
         else:
             st.error(f"Error cargando datos de Meta: {error_msg}")
+
 
 
 

@@ -54,7 +54,6 @@ def generar_contenido_ia(tema, tono, formato, api_key):
         except:
             model = genai.GenerativeModel('models/gemini-2.5-flash')
         
-        # MANTENEMOS TUS 9 TONOS ORIGINALES
         tonos_dict = {
             "Empático": "Priorizá la validación emocional. Usá frases como 'Te entiendo profundamente'.",
             "Cuestionador": "Usá preguntas retóricas potentes que inviten a la introspección profunda.",
@@ -68,12 +67,11 @@ def generar_contenido_ia(tema, tono, formato, api_key):
         }
         instruccion_tono = tonos_dict.get(tono, f"Mantené un tono {tono}.")
 
-        # MEJORA: Instrucciones específicas para Engagement en Stories
         if "Story" in formato:
             instrucciones_formato = """
             - Formato Story: Texto brevísmo (max 40 palabras).
             - Estilo: Pensamiento semilla poético + Llamado a la interacción.
-            - Stickers: Sugerí OBLIGATORIAMENTE un sticker de interacción (Encuesta SI/NO, Caja de Preguntas, Slider de Corazón o Link de Reservas).
+            - Stickers: Sugerí OBLIGATORIAMENTE un sticker de interacción (Encuesta SI/NO, Caja de Preguntas, Slider o Link).
             - NO uses hashtags.
             """
         else:
@@ -86,16 +84,31 @@ def generar_contenido_ia(tema, tono, formato, api_key):
         Sos Silvia Baldi (voseo argentino). Escribí un contenido sobre: '{tema}'.
         Tono: {instruccion_tono}. Usá metáforas de raíces e hilos invisibles.
         FORMATO: {instrucciones_formato}
-        Respondé ÚNICAMENTE con un JSON:
+        
+        Respondé ÚNICAMENTE con un JSON válido. NO agregues comillas invertidas ni la palabra json al principio:
         {{
-          "opcion_1": {{"texto": "copy...", "sticker": "Tipo de sticker (ej: Encuesta '¿Sentís esto?' SI/NO)", "frase_placa": "Frase para la foto"}},
-          "opcion_2": {{"texto": "copy...", "sticker": "Tipo de sticker (ej: Caja de preguntas '¿Qué te duele hoy?')", "frase_placa": "Frase para la foto"}},
-          "opcion_3": {{"texto": "copy...", "sticker": "Tipo de sticker (ej: Link 'Hacé click para tu sesión')", "frase_placa": "Frase para la foto"}}
+          "opcion_1": {{"texto": "copy...", "sticker": "Tipo de sticker", "frase_placa": "Frase"}},
+          "opcion_2": {{"texto": "copy...", "sticker": "Tipo de sticker", "frase_placa": "Frase"}},
+          "opcion_3": {{"texto": "copy...", "sticker": "Tipo de sticker", "frase_placa": "Frase"}}
         }}
         """
-        response = model.generate_content(prompt, generation_config={"response_mime_type": "application/json", "temperature": 0.8})
-        return json.loads(response.text, strict=False)
+        
+        response = model.generate_content(prompt, generation_config={"temperature": 0.8})
+        
+        # --- LIMPIEZA A PRUEBA DE BALAS ---
+        texto_limpio = response.text.strip()
+        if texto_limpio.startswith("```json"):
+            texto_limpio = texto_limpio[7:]
+        if texto_limpio.startswith("```"):
+            texto_limpio = texto_limpio[3:]
+        if texto_limpio.endswith("```"):
+            texto_limpio = texto_limpio[:-3]
+            
+        return json.loads(texto_limpio.strip(), strict=False)
+        
     except Exception as e:
+        # Si algo falla, AHORA LO VAS A VER EN ROJO EN LA APP
+        st.error(f"⚠️ Hubo un problema al procesar la IA: {e}")
         return None
         
 def generar_temas_disparadores(api_key):
@@ -275,14 +288,14 @@ with tab1:
                 if key_opcion in st.session_state.opciones:
                     opc = st.session_state.opciones[key_opcion]
                     with t:
-                        st.write(opc['texto'])
+                        st.write(opc.get('texto', 'Error: No se generó texto.'))
                         
-                        # --- NUEVO: Muestra el sticker si existe ---
-                        if opc.get('sticker'):
+                        # Mostramos el sticker si es una Story
+                        if opc.get('sticker') and opc.get('sticker') != "Tipo de sticker":
                             st.info(f"✨ **Sticker Recomendado:** {opc['sticker']}")
                         
                         if st.button(f"✅ Usar Opción {chr(65+i)}", key=f"btn_elige_{i}"):
-                            st.session_state.generated_copy = opc['texto']
+                            st.session_state.generated_copy = opc.get('texto', '')
                             st.session_state.frase_para_placa = opc.get('frase_placa', '')
                             st.session_state.editor_version += 1
                             st.rerun()
@@ -435,6 +448,7 @@ with tab3:
                 st.divider()
         else:
             st.error(f"Error cargando datos de Meta: {error_msg}")
+
 
 
 

@@ -91,18 +91,43 @@ def generar_contenido_ia(tema, tono, formato, api_key):
         return None
 
 def generar_temas_disparadores(api_key):
+    import random
     import re
     try:
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('models/gemini-2.5-flash')
+        try:
+            model = genai.GenerativeModel('models/gemini-2.0-flash')
+        except:
+            model = genai.GenerativeModel('models/gemini-2.5-flash')
+        
         estilos = ["Constelaciones Familiares", "Astrogenealogía", "Memoria Celular", "Flores de Bach", "Amor Propio y Límites"]
         enfoque = random.choice(estilos)
-        prompt = f"Sos Silvia Baldi. Generá 5 frases breves sobre {enfoque}. SOLO frases. Máximo 8 palabras por frase. Voseo argentino."
-        response = model.generate_content(prompt, generation_config={"temperature": 0.8})
-        temas_limpios = [re.sub(r'^(Post \d+:?|Tema \d+:?|\d+[\.\-\)]\s*)', '', line.replace('*', '').replace('"', '').strip(), flags=re.IGNORECASE).strip() for line in response.text.split('\n') if len(line) > 5 and "Aquí tienes" not in line]
-        return temas_limpios[:5] if len(temas_limpios) >= 3 else ["El éxito tiene la cara de la madre", "Tu sensibilidad es tu brújula", "Sanar el pasado para habitar el presente"]
+
+        prompt = f"""
+        Sos Silvia Baldi. Generá exactamente 5 frases breves sobre {enfoque}.
+        
+        REGLAS:
+        - SOLO las frases, una por línea.
+        - PROHIBIDO introducciones como "Aquí tenés" o "¡Claro!".
+        - Sin números ni guiones.
+        - Máximo 8 palabras por frase. Usá voseo argentino.
+        """
+        
+        response = model.generate_content(prompt, generation_config={"temperature": 0.9})
+        temas_brutos = response.text.split('\n')
+        temas_limpios = []
+        
+        for line in temas_brutos:
+            l = line.replace('*', '').replace('"', '').strip()
+            l = re.sub(r'^(Post \d+:?|Tema \d+:?|\d+[\.\-\)]\s*)', '', l, flags=re.IGNORECASE).strip()
+            
+            # Filtro de seguridad: ignoramos líneas que parecen charla de la IA
+            if len(l) > 5 and not any(x in l.lower() for x in ["aquí", "aqui", "tienes", "tenés", "frases", "claro"]):
+                temas_limpios.append(l)
+        
+        return temas_limpios[:5]
     except:
-        return ["El éxito tiene la cara de la madre", "Tu sensibilidad es tu brújula", "Sanar el pasado para habitar el presente"]
+        return ["El éxito tiene la cara de la madre", "Tu sensibilidad es tu brújula", "Sanar lealtades invisibles", "Tomá tu lugar en el orden", "Honrá tu sistema familiar"]
 
 def buscar_imagenes_pixabay(query, api_key, formato="Post", page=1):
     try:
@@ -125,10 +150,9 @@ def agregar_texto_a_imagen(url_imagen, texto, posicion="Centro", color_hex="#000
         draw = ImageDraw.Draw(txt_layer)
         ancho, alto = img.size
         
-        # --- MEJORA 1: Cálculo de fuente más agresivo ---
-        # Aumentamos la base del divisor para que el slider (5-25) se note más
-        font_size = int(alto * (tamano_prop / 100)) 
-        if font_size < 20: font_size = 20 # Mínimo legible para cualquier pantalla
+        # --- AJUSTE: Divisor 320 para equilibrio entre 5 y 25 del slider ---
+        font_size = int(alto * (tamano_prop / 320)) 
+        if font_size < 18: font_size = 18 # Mínimo absoluto para que no desaparezca
 
         font = None
         rutas_fuentes = ["/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"]
@@ -139,21 +163,18 @@ def agregar_texto_a_imagen(url_imagen, texto, posicion="Centro", color_hex="#000
             except: continue
         if not font: font = ImageFont.load_default()
 
-        # --- MEJORA 2: Ajuste de ancho de bloque ---
         texto_con_saltos = texto.replace("/", "\n")
-        ancho_max_bloque = ancho * 0.90 # Usamos el 90% para que el texto sea más grande
-        # Ajustamos cuántos caracteres entran por línea basándonos en el nuevo tamaño
-        chars_por_linea = max(8, int(ancho_max_bloque / (font_size * 0.50)))
+        ancho_max_bloque = ancho * 0.85 
+        chars_por_linea = max(8, int(ancho_max_bloque / (font_size * 0.52)))
         
         lineas = []
         for parrafo in texto_con_saltos.split('\n'):
             lineas.extend(textwrap.wrap(parrafo, width=chars_por_linea))
         
-        espaciado = int(font_size * 0.3)
+        espaciado = int(font_size * 0.25)
         alto_total_texto = len(lineas) * (font_size + espaciado)
         
-        # --- MEJORA 3: Posicionamiento dinámico ---
-        margen_vertical = alto * 0.05 # Reducimos margen al 5% para ganar espacio
+        margen_vertical = alto * 0.10
         if posicion == "Arriba":
             y_inicial = margen_vertical
         elif posicion == "Abajo":
@@ -161,7 +182,6 @@ def agregar_texto_a_imagen(url_imagen, texto, posicion="Centro", color_hex="#000
         else:
             y_inicial = (alto - alto_total_texto) / 2
 
-        # Dibujar fondo
         max_w_real = 0
         for linea in lineas:
             bbox = draw.textbbox((0, 0), linea, font=font)
@@ -170,14 +190,13 @@ def agregar_texto_a_imagen(url_imagen, texto, posicion="Centro", color_hex="#000
         h_bg = color_hex.lstrip('#')
         rgb_bg = tuple(int(h_bg[i:i+2], 16) for i in (0, 2, 4))
         
-        # Padding más grande para que el bloque "respire"
-        pad_h, pad_v = 40, 30 
+        # Padding elegante
+        pad_h, pad_v = 30, 20
         draw.rectangle([
             (ancho - max_w_real)/2 - pad_h, y_inicial - pad_v,
             (ancho + max_w_real)/2 + pad_h, y_inicial + alto_total_texto + pad_v
         ], fill=rgb_bg + (opacidad,))
 
-        # Dibujar texto
         y_cursor = y_inicial
         for linea in lineas:
             bbox = draw.textbbox((0, 0), linea, font=font)
@@ -187,7 +206,7 @@ def agregar_texto_a_imagen(url_imagen, texto, posicion="Centro", color_hex="#000
 
         out = Image.alpha_composite(img, txt_layer).convert("RGB")
         img_byte_arr = io.BytesIO()
-        out.save(img_byte_arr, format='JPEG', quality=100) # Máxima calidad
+        out.save(img_byte_arr, format='JPEG', quality=95)
         return img_byte_arr.getvalue()
     except Exception as e:
         return None
@@ -438,4 +457,5 @@ with tab3:
                 st.divider()
         else:
             st.error(f"Error cargando datos de Meta: {error_msg}")
+
 

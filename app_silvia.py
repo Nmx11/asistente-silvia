@@ -67,48 +67,46 @@ def generar_contenido_ia(tema, tono, formato, api_key):
         }
         instruccion_tono = tonos_dict.get(tono, f"Mantené un tono {tono}.")
 
+        # --- LÓGICA DIFERENCIADA SEGÚN FORMATO ---
         if "Story" in formato:
-            instrucciones_formato = """
-            - Formato Story: Texto brevísmo (max 40 palabras).
-            - Estilo: Pensamiento semilla poético + Llamado a la interacción.
-            - Stickers: Sugerí OBLIGATORIAMENTE un sticker de interacción (Encuesta SI/NO, Caja de Preguntas, Slider o Link).
+            instrucciones_especificas = """
+            - FORMATO STORY: Texto muy breve (máximo 40 palabras). Poético y al grano.
+            - INTERACCIÓN: Sugerí obligatoriamente un sticker (Encuesta SI/NO, Caja de preguntas, o Slider).
             - NO uses hashtags.
             """
         else:
-            instrucciones_formato = """
-            - Formato Post/Reel: Copy profundo.
-            - OBLIGATORIO 5 hashtags: #SilviaBaldi #UniversoVivencial #ConstelacionesFamiliares #SanacionHolistica #BienestarInterior.
+            instrucciones_especificas = """
+            - FORMATO POST/REEL: Copy profundo y extenso. Mínimo 3 párrafos generosos.
+            - ESTRUCTURA: Gancho potente -> Desarrollo con sabiduría -> Reflexión final.
+            - HASHTAGS: Incluí al final exactamente estos 5: #SilviaBaldi #UniversoVivencial #ConstelacionesFamiliares #SanacionHolistica #BienestarInterior
             """
 
         prompt = f"""
-        Sos Silvia Baldi (voseo argentino). Escribí un contenido sobre: '{tema}'.
+        Sos Silvia Baldi, terapeuta holística (voseo argentino). Escribí sobre: '{tema}'.
         Tono: {instruccion_tono}. Usá metáforas de raíces e hilos invisibles.
-        FORMATO: {instrucciones_formato}
         
-        Respondé ÚNICAMENTE con un JSON válido. NO agregues comillas invertidas ni la palabra json al principio:
+        REQUERIMIENTOS:
+        {instrucciones_especificas}
+        
+        Respondé ÚNICAMENTE con un JSON puro:
         {{
-          "opcion_1": {{"texto": "copy...", "sticker": "Tipo de sticker", "frase_placa": "Frase"}},
-          "opcion_2": {{"texto": "copy...", "sticker": "Tipo de sticker", "frase_placa": "Frase"}},
-          "opcion_3": {{"texto": "copy...", "sticker": "Tipo de sticker", "frase_placa": "Frase"}}
+          "opcion_1": {{"texto": "copy completo...", "sticker": "Sticker sugerido y texto", "frase_placa": "Frase corta para placa"}},
+          "opcion_2": {{"texto": "copy completo...", "sticker": "Sticker sugerido y texto", "frase_placa": "Frase corta para placa"}},
+          "opcion_3": {{"texto": "copy completo...", "sticker": "Sticker sugerido y texto", "frase_placa": "Frase corta para placa"}}
         }}
         """
         
         response = model.generate_content(prompt, generation_config={"temperature": 0.8})
         
-        # --- LIMPIEZA A PRUEBA DE BALAS ---
-        texto_limpio = response.text.strip()
-        if texto_limpio.startswith("```json"):
-            texto_limpio = texto_limpio[7:]
-        if texto_limpio.startswith("```"):
-            texto_limpio = texto_limpio[3:]
-        if texto_limpio.endswith("```"):
-            texto_limpio = texto_limpio[:-3]
+        # Limpieza de Markdown si Gemini envía ```json ... ```
+        raw_text = response.text.strip()
+        if raw_text.startswith("```"):
+            raw_text = raw_text.split("```")[1]
+            if raw_text.startswith("json"): raw_text = raw_text[4:]
             
-        return json.loads(texto_limpio.strip(), strict=False)
-        
+        return json.loads(raw_text.strip(), strict=False)
     except Exception as e:
-        # Si algo falla, AHORA LO VAS A VER EN ROJO EN LA APP
-        st.error(f"⚠️ Hubo un problema al procesar la IA: {e}")
+        st.error(f"Error técnico: {e}")
         return None
         
 def generar_temas_disparadores(api_key):
@@ -448,6 +446,7 @@ with tab3:
                 st.divider()
         else:
             st.error(f"Error cargando datos de Meta: {error_msg}")
+
 
 
 

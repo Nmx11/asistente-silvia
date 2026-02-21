@@ -293,11 +293,15 @@ if st.session_state.get('opciones'):
 
         st.divider()
         st.subheader("2. Multimedia Visual")
-        busqueda = st.text_input("🎨 ¿Qué imagen buscamos?")
+
+        # Agregamos 'key' para evitar el error de DuplicateElementId
+        busqueda = st.text_input("🎨 ¿Qué imagen buscamos?", key="input_busqueda_pixabay")
+        
         col_btn1, col_btn2 = st.columns(2)
         with col_btn1:
-            if st.button("🔍 Buscar en Pixabay") and busqueda:
-                st.session_state.search_results, _ = buscar_imagenes_pixabay(busqueda, PIXABAY_KEY, formato=post_format)
+            if st.button("🔍 Buscar en Pixabay", key="btn_search_pix"):
+                if busqueda:
+                    st.session_state.search_results, _ = buscar_imagenes_pixabay(busqueda, PIXABAY_KEY, formato=post_format)
         with col_btn2:
             st.markdown(f'<a href="https://ar.pinterest.com/search/pins/?q={busqueda.replace(" ", "%20")}" target="_blank"><button style="width:100%; border-radius:12px; background-color:#E60023; color:white; border:none; padding:15px; cursor:pointer; font-weight:bold;">📌 Buscar en Pinterest ↗️</button></a>', unsafe_allow_html=True)
 
@@ -312,10 +316,12 @@ if st.session_state.get('opciones'):
 
         col_url, col_file = st.columns(2)
         with col_url:
-            url_manual = st.text_input("🔗 Pegá link directo de imagen:")
-            if st.button("🖼️ Cargar desde link") and url_manual:
-                st.session_state.selected_img = url_manual
-                st.rerun()
+            # Key única también aquí
+            url_manual = st.text_input("🔗 Pegá link directo de imagen:", key="input_url_manual")
+            if st.button("🖼️ Cargar desde link", key="btn_load_url"):
+                if url_manual:
+                    st.session_state.selected_img = url_manual
+                    st.rerun()
         with col_file:
             archivo_subido = st.file_uploader("📁 O subí tu propia foto:", type=['jpg', 'png'])
             if archivo_subido:
@@ -439,6 +445,7 @@ with tab3:
                 st.divider()
         else:
             st.error(f"Error cargando datos de Meta: {error_msg}")
+
 
 
 

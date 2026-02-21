@@ -54,6 +54,7 @@ def generar_contenido_ia(tema, tono, formato, api_key):
         except:
             model = genai.GenerativeModel('models/gemini-2.5-flash')
         
+        # MANTENEMOS TUS 9 TONOS ORIGINALES INTACTOS
         tonos_dict = {
             "Empático": "Priorizá la validación emocional. Usá frases como 'Te entiendo profundamente'.",
             "Cuestionador": "Usá preguntas retóricas potentes que inviten a la introspección profunda.",
@@ -67,67 +68,56 @@ def generar_contenido_ia(tema, tono, formato, api_key):
         }
         instruccion_tono = tonos_dict.get(tono, f"Mantené un tono {tono}.")
 
+        # NUEVA LÓGICA DE FORMATO STORY
         if "Story" in formato:
-            instrucciones_formato = "- Formato Story: Texto corto, poético. NO uses hashtags. Sugerí un sticker interactivo."
+            instrucciones_formato = """
+            - Formato Story: Texto brevísmo (máximo 40 palabras). 
+            - Estilo CM: Una frase semilla potente y una invitación a la acción.
+            - Interacción: DEBES sugerir un sticker interactivo específico (ej: Encuesta SI/NO, Caja de preguntas, Slider de corazón o Link de reserva).
+            - NO uses hashtags.
+            """
         else:
-            instrucciones_formato = "- Formato Post: Copy profundo. OBLIGATORIO 5 hashtags: #SilviaBaldi #UniversoVivencial #ConstelacionesFamiliares #SanacionHolistica #BienestarInterior."
+            instrucciones_formato = """
+            - Formato Post/Reel: Copy profundo con gancho y desarrollo.
+            - OBLIGATORIO 5 hashtags: #SilviaBaldi #UniversoVivencial #ConstelacionesFamiliares #SanacionHolistica #BienestarInterior.
+            """
 
         prompt = f"""
-        Sos Silvia Baldi, terapeuta holística experta en Constelaciones Familiares. Escribí un post sobre: '{tema}'.
-        ESTILO Y VOZ: Usá 'voseo' argentino. Tu tono es: {instruccion_tono}. Usá metáforas (raíces, hilos invisibles).
-        ESTRUCTURA: 1. Gancho potente. 2. Desarrollo (2/3 párrafos generosos). 3. Reflexión. 4. Cierre.
+        Sos Silvia Baldi (voseo argentino). Escribí sobre: '{tema}'.
+        Tono: {instruccion_tono}. Usá metáforas de raíces e hilos invisibles.
         FORMATO: {instrucciones_formato}
+        
         Respondé ÚNICAMENTE con un JSON:
         {{
-          "opcion_1": {{"texto": "copy...", "sticker": "idea", "frase_placa": "Frase corta"}},
-          "opcion_2": {{"texto": "copy...", "sticker": "idea", "frase_placa": "Frase corta"}},
-          "opcion_3": {{"texto": "copy...", "sticker": "idea", "frase_placa": "Frase corta"}}
+          "opcion_1": {{"texto": "copy...", "sticker": "Tipo de sticker e instrucción", "frase_placa": "Frase para la foto"}},
+          "opcion_2": {{"texto": "copy...", "sticker": "Tipo de sticker e instrucción", "frase_placa": "Frase para la foto"}},
+          "opcion_3": {{"texto": "copy...", "sticker": "Tipo de sticker e instrucción", "frase_placa": "Frase para la foto"}}
         }}
         """
         response = model.generate_content(prompt, generation_config={"response_mime_type": "application/json", "temperature": 0.8})
         return json.loads(response.text, strict=False)
     except Exception as e:
-        st.error(f"Error con Gemini: {e}")
         return None
 
 def generar_temas_disparadores(api_key):
-    import random
     import re
     try:
         genai.configure(api_key=api_key)
-        try:
-            model = genai.GenerativeModel('models/gemini-2.0-flash')
-        except:
-            model = genai.GenerativeModel('models/gemini-2.5-flash')
+        model = genai.GenerativeModel('models/gemini-2.0-flash')
         
-        estilos = ["Constelaciones Familiares", "Astrogenealogía", "Memoria Celular", "Flores de Bach", "Amor Propio y Límites"]
-        enfoque = random.choice(estilos)
-
-        prompt = f"""
-        Sos Silvia Baldi. Generá exactamente 5 frases breves sobre {enfoque}.
+        prompt = "Sos Silvia Baldi. Generá 5 frases cortas sobre Constelaciones o terapias holísticas. SOLO las frases, sin introducciones ni números."
+        response = model.generate_content(prompt)
         
-        REGLAS:
-        - SOLO las frases, una por línea.
-        - PROHIBIDO introducciones como "Aquí tenés" o "¡Claro!".
-        - Sin números ni guiones.
-        - Máximo 8 palabras por frase. Usá voseo argentino.
-        """
-        
-        response = model.generate_content(prompt, generation_config={"temperature": 0.9})
-        temas_brutos = response.text.split('\n')
         temas_limpios = []
-        
-        for line in temas_brutos:
+        for line in response.text.split('\n'):
             l = line.replace('*', '').replace('"', '').strip()
             l = re.sub(r'^(Post \d+:?|Tema \d+:?|\d+[\.\-\)]\s*)', '', l, flags=re.IGNORECASE).strip()
-            
-            # Filtro de seguridad: ignoramos líneas que parecen charla de la IA
-            if len(l) > 5 and not any(x in l.lower() for x in ["aquí", "aqui", "tienes", "tenés", "frases", "claro"]):
+            # Filtramos cualquier frase de relleno de la IA
+            if len(l) > 5 and not any(x in l.lower() for x in ["aquí", "aqui", "tienes", "tenés", "frases"]):
                 temas_limpios.append(l)
-        
         return temas_limpios[:5]
     except:
-        return ["El éxito tiene la cara de la madre", "Tu sensibilidad es tu brújula", "Sanar lealtades invisibles", "Tomá tu lugar en el orden", "Honrá tu sistema familiar"]
+        return ["Sanar lealtades invisibles", "El orden en el amor", "Tu sensibilidad es tu guía", "Honrá tu sistema familiar", "Mirá lo que te une al clan"]
 
 def buscar_imagenes_pixabay(query, api_key, formato="Post", page=1):
     try:
@@ -142,7 +132,7 @@ def buscar_imagenes_pixabay(query, api_key, formato="Post", page=1):
     except Exception as e:
         return [], 0
 
-def agregar_texto_a_imagen(url_imagen, texto, posicion="Centro", color_hex="#000000", tamano_prop=15, opacidad=180, color_texto="#FFFFFF"):
+def agregar_texto_a_imagen(url_imagen, texto, posicion="Centro", color_hex="#000000", tamano_prop=12, opacidad=180, color_texto="#FFFFFF"):
     try:
         res = requests.get(url_imagen)
         img = Image.open(io.BytesIO(res.content)).convert("RGBA")
@@ -150,9 +140,9 @@ def agregar_texto_a_imagen(url_imagen, texto, posicion="Centro", color_hex="#000
         draw = ImageDraw.Draw(txt_layer)
         ancho, alto = img.size
         
-        # --- AJUSTE: Divisor 320 para equilibrio entre 5 y 25 del slider ---
-        font_size = int(alto * (tamano_prop / 320)) 
-        if font_size < 18: font_size = 18 # Mínimo absoluto para que no desaparezca
+        # Ajuste: Divisor 350 para que el rango sea más suave y el mínimo más chico
+        font_size = int(alto * (tamano_prop / 350)) 
+        if font_size < 14: font_size = 14 # Piso mínimo reducido
 
         font = None
         rutas_fuentes = ["/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"]
@@ -163,9 +153,10 @@ def agregar_texto_a_imagen(url_imagen, texto, posicion="Centro", color_hex="#000
             except: continue
         if not font: font = ImageFont.load_default()
 
+        # ... (resto de la lógica de dibujo igual para no romper nada) ...
         texto_con_saltos = texto.replace("/", "\n")
         ancho_max_bloque = ancho * 0.85 
-        chars_por_linea = max(8, int(ancho_max_bloque / (font_size * 0.52)))
+        chars_por_linea = max(8, int(ancho_max_bloque / (font_size * 0.55)))
         
         lineas = []
         for parrafo in texto_con_saltos.split('\n'):
@@ -174,28 +165,18 @@ def agregar_texto_a_imagen(url_imagen, texto, posicion="Centro", color_hex="#000
         espaciado = int(font_size * 0.25)
         alto_total_texto = len(lineas) * (font_size + espaciado)
         
-        margen_vertical = alto * 0.10
-        if posicion == "Arriba":
-            y_inicial = margen_vertical
-        elif posicion == "Abajo":
-            y_inicial = alto - alto_total_texto - margen_vertical - 20
-        else:
-            y_inicial = (alto - alto_total_texto) / 2
+        margen_v = alto * 0.10
+        y_inicial = margen_v if posicion == "Arriba" else (alto - alto_total_texto - margen_v - 20 if posicion == "Abajo" else (alto - alto_total_texto) / 2)
 
-        max_w_real = 0
+        max_w = 0
         for linea in lineas:
             bbox = draw.textbbox((0, 0), linea, font=font)
-            max_w_real = max(max_w_real, bbox[2] - bbox[0])
+            max_w = max(max_w, bbox[2] - bbox[0])
 
         h_bg = color_hex.lstrip('#')
         rgb_bg = tuple(int(h_bg[i:i+2], 16) for i in (0, 2, 4))
-        
-        # Padding elegante
         pad_h, pad_v = 30, 20
-        draw.rectangle([
-            (ancho - max_w_real)/2 - pad_h, y_inicial - pad_v,
-            (ancho + max_w_real)/2 + pad_h, y_inicial + alto_total_texto + pad_v
-        ], fill=rgb_bg + (opacidad,))
+        draw.rectangle([(ancho - max_w)/2 - pad_h, y_inicial - pad_v, (ancho + max_w)/2 + pad_h, y_inicial + alto_total_texto + pad_v], fill=rgb_bg + (opacidad,))
 
         y_cursor = y_inicial
         for linea in lineas:
@@ -208,7 +189,7 @@ def agregar_texto_a_imagen(url_imagen, texto, posicion="Centro", color_hex="#000
         img_byte_arr = io.BytesIO()
         out.save(img_byte_arr, format='JPEG', quality=95)
         return img_byte_arr.getvalue()
-    except Exception as e:
+    except:
         return None
 
 def post_to_instagram_api(caption, image_url, access_token, ig_user_id, imgbb_key, formato="Post"):
@@ -457,5 +438,6 @@ with tab3:
                 st.divider()
         else:
             st.error(f"Error cargando datos de Meta: {error_msg}")
+
 
 

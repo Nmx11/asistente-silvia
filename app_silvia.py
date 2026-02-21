@@ -125,38 +125,69 @@ def agregar_texto_a_imagen(url_imagen, texto, posicion="Centro", color_hex="#000
         draw = ImageDraw.Draw(txt_layer)
         ancho, alto = img.size
         
-        font_size = max(12, int(alto * (tamano_prop / 450)))
-        font = ImageFont.load_default()
-        
+        # --- MEJORA 1: Cálculo de fuente más agresivo ---
+        # Aumentamos la base del divisor para que el slider (5-25) se note más
+        font_size = int(alto * (tamano_prop / 100)) 
+        if font_size < 20: font_size = 20 # Mínimo legible para cualquier pantalla
+
+        font = None
+        rutas_fuentes = ["/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"]
+        for ruta in rutas_fuentes:
+            try:
+                font = ImageFont.truetype(ruta, font_size)
+                break
+            except: continue
+        if not font: font = ImageFont.load_default()
+
+        # --- MEJORA 2: Ajuste de ancho de bloque ---
         texto_con_saltos = texto.replace("/", "\n")
-        chars_por_linea = max(10, int((ancho * 0.80) / (font_size * 0.55)))
+        ancho_max_bloque = ancho * 0.90 # Usamos el 90% para que el texto sea más grande
+        # Ajustamos cuántos caracteres entran por línea basándonos en el nuevo tamaño
+        chars_por_linea = max(8, int(ancho_max_bloque / (font_size * 0.50)))
         
         lineas = []
         for parrafo in texto_con_saltos.split('\n'):
             lineas.extend(textwrap.wrap(parrafo, width=chars_por_linea))
         
-        espaciado = int(font_size * 0.25)
+        espaciado = int(font_size * 0.3)
         alto_total_texto = len(lineas) * (font_size + espaciado)
         
-        if posicion == "Arriba": y_inicial = alto * 0.12
-        elif posicion == "Abajo": y_inicial = alto - alto_total_texto - (alto * 0.12) - 40
-        else: y_inicial = (alto - alto_total_texto) / 2
+        # --- MEJORA 3: Posicionamiento dinámico ---
+        margen_vertical = alto * 0.05 # Reducimos margen al 5% para ganar espacio
+        if posicion == "Arriba":
+            y_inicial = margen_vertical
+        elif posicion == "Abajo":
+            y_inicial = alto - alto_total_texto - margen_vertical - 20
+        else:
+            y_inicial = (alto - alto_total_texto) / 2
 
-        max_w_real = max([draw.textlength(linea, font=font) for linea in lineas] + [0])
+        # Dibujar fondo
+        max_w_real = 0
+        for linea in lineas:
+            bbox = draw.textbbox((0, 0), linea, font=font)
+            max_w_real = max(max_w_real, bbox[2] - bbox[0])
+
         h_bg = color_hex.lstrip('#')
         rgb_bg = tuple(int(h_bg[i:i+2], 16) for i in (0, 2, 4))
         
-        draw.rectangle([(ancho - max_w_real)/2 - 25, y_inicial - 20, (ancho + max_w_real)/2 + 25, y_inicial + alto_total_texto + 20], fill=rgb_bg + (opacidad,))
+        # Padding más grande para que el bloque "respire"
+        pad_h, pad_v = 40, 30 
+        draw.rectangle([
+            (ancho - max_w_real)/2 - pad_h, y_inicial - pad_v,
+            (ancho + max_w_real)/2 + pad_h, y_inicial + alto_total_texto + pad_v
+        ], fill=rgb_bg + (opacidad,))
 
+        # Dibujar texto
         y_cursor = y_inicial
         for linea in lineas:
-            w_linea = draw.textlength(linea, font=font)
+            bbox = draw.textbbox((0, 0), linea, font=font)
+            w_linea = bbox[2] - bbox[0]
             draw.text(((ancho - w_linea) / 2, y_cursor), linea, font=font, fill=color_texto)
             y_cursor += font_size + espaciado
 
         out = Image.alpha_composite(img, txt_layer).convert("RGB")
         img_byte_arr = io.BytesIO()
-        out.save(img_byte_arr, format='JPEG', quality=95)
+        out.save(img_byte_arr, format='JPEG', quality=100) # Máxima calidad
         return img_byte_arr.getvalue()
     except Exception as e:
         return None
@@ -407,3 +438,4 @@ with tab3:
                 st.divider()
         else:
             st.error(f"Error cargando datos de Meta: {error_msg}")
+

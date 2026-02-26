@@ -229,6 +229,14 @@ def post_to_instagram_api(caption, image_url, access_token, ig_user_id, imgbb_ke
 
         # --- DIAGNÓSTICO 3: ENVÍO A META ---
         url_container = f"https://graph.facebook.com/v19.0/{ig_user_id}/media"
+
+        try:
+            response_test = requests.get(url_final, timeout=5)
+            content_type = response_test.headers.get('Content-Type', '')
+            if 'image' not in content_type:
+                    return False, f"ERROR CRÍTICO: El servidor devolvió {content_type} en lugar de una imagen. ImgBB nos está bloqueando."
+        except Exception as e:
+            pass
         
         # Probamos forzando 'image_url' y omitiendo media_type para ver si Meta lo autodetecta
         payload = {
@@ -484,6 +492,7 @@ with tab3:
                 st.divider()
         else:
             st.error(f"Error cargando datos de Meta: {error_msg}")
+
 
 
 

@@ -206,9 +206,9 @@ def agregar_texto_a_imagen(url_imagen, texto, posicion="Centro", color_hex="#000
 
 def post_to_instagram_api(caption, image_url, access_token, ig_user_id, imgbb_key, formato="Post"):
     try:
-        # 1. Subida a ImgBB
+        # --- DIAGNÓSTICO 1: SUBIDA ---
         imgbb_url = "https://api.imgbb.com/1/upload"
-        nombre_id = f"silvia_{int(time.time())}.jpg"
+        nombre_id = f"test_{int(time.time())}.jpg"
         
         if isinstance(image_url, bytes):
             files = {'image': (nombre_id, image_url, 'image/jpeg')}
@@ -217,61 +217,52 @@ def post_to_instagram_api(caption, image_url, access_token, ig_user_id, imgbb_ke
             res_imgbb = requests.post(imgbb_url, data={"key": imgbb_key, "image": image_url}).json()
         
         if not res_imgbb.get("success"):
-            return False, f"Error ImgBB: {res_imgbb.get('error', {}).get('message')}"
+            return False, f"DEBUG: Error ImgBB -> {res_imgbb}"
+
+        url_final = res_imgbb["data"]["url"]
         
-        # CAMBIO 1: Usamos 'display_url' que es más compatible con crawlers de redes sociales
-        url_final = res_imgbb["data"]["display_url"]
+        # --- DIAGNÓSTICO 2: VERIFICACIÓN DE URL ---
+        # Intentamos ver si la URL responde antes de dársela a Meta
+        check_url = requests.head(url_final)
+        if check_url.status_code != 200:
+            return False, f"DEBUG: La URL generada no está activa todavía (Status: {check_url.status_code})"
 
-        # CAMBIO 2: Pausa de seguridad (5 segundos) para que la imagen se propague en el servidor
-        time.sleep(5)
-
-        # 2. Configurar el contenedor de Meta
+        # --- DIAGNÓSTICO 3: ENVÍO A META ---
         url_container = f"https://graph.facebook.com/v19.0/{ig_user_id}/media"
+        
+        # Probamos forzando 'image_url' y omitiendo media_type para ver si Meta lo autodetecta
         payload = {
             "access_token": access_token,
-            "caption": caption
+            "caption": caption,
+            "image_url": url_final
         }
-
+        
+        # Si es Story, es obligatorio el media_type
         if "Story" in formato:
-            payload.update({
-                "image_url": url_final,
-                "media_type": "STORIES"
-            })
-        elif "Reel" in formato:
-            # Meta NO acepta imágenes para Reels. Forzamos que sea un Post de Feed.
-            payload.update({
-                "image_url": url_final,
-                "media_type": "IMAGE"
-            })
-        else:
-            # CAMBIO 3: Declaramos explícitamente "IMAGE" para Feed Posts
-            payload.update({
-                "image_url": url_final,
-                "media_type": "IMAGE" 
-            })
+            payload["media_type"] = "STORIES"
 
         r = requests.post(url_container, data=payload)
         res_c = r.json()
         
         if r.status_code != 200:
-            return False, f"Meta Container: {res_c.get('error', {}).get('message')} (URL: {url_final})"
+            # ESTA ES LA CLAVE: Aquí veremos el código de error real (ej: 10, 100, 190)
+            error_msg = res_c.get('error', {})
+            return False, f"DIAGNÓSTICO INTERNO:\n- Código: {error_msg.get('code')}\n- Sub-código: {error_msg.get('error_subcode')}\n- Mensaje: {error_msg.get('message')}\n- URL enviada: {url_final}"
         
+        # Si pasa el contenedor, seguimos...
         creation_id = res_c.get('id')
+        time.sleep(20)
         
-        # Espera para procesamiento de Meta (25 seg)
-        time.sleep(25)
-        
-        # 3. Publicar
         url_publish = f"https://graph.facebook.com/v19.0/{ig_user_id}/media_publish"
         r_p = requests.post(url_publish, data={"creation_id": creation_id, "access_token": access_token})
         
         if r_p.status_code == 200:
             return True, r_p.json()
         else:
-            return False, f"Meta Publish: {r_p.json().get('error', {}).get('message')}"
+            return False, f"Error en publicación: {r_p.json()}"
 
     except Exception as e:
-        return False, f"Error Crítico: {str(e)}"
+        return False, f"Excepción técnica: {str(e)}"
 
 def obtener_metricas_instagram(access_token, ig_user_id):
     url = f"https://graph.facebook.com/v19.0/{ig_user_id}/media"
@@ -493,6 +484,7 @@ with tab3:
                 st.divider()
         else:
             st.error(f"Error cargando datos de Meta: {error_msg}")
+
 
 
 

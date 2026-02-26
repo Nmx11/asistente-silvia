@@ -148,10 +148,10 @@ def agregar_texto_a_imagen(url_imagen, texto, posicion="Centro", color_hex="#000
         draw = ImageDraw.Draw(txt_layer)
         ancho, alto = img.size
         
-        # Divisor 320 para que el tamaño 12 sea el "punto dulce"
         font_size = int(alto * (tamano_prop / 320)) 
         if font_size < 18: font_size = 18 
 
+        # ... (Mantener tu lógica de fuentes y texto igual) ...
         font = None
         rutas_fuentes = ["/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"]
         for ruta in rutas_fuentes:
@@ -161,36 +161,47 @@ def agregar_texto_a_imagen(url_imagen, texto, posicion="Centro", color_hex="#000
             except: continue
         if not font: font = ImageFont.load_default()
 
-        # ... (Mantener lógica de textwrap y dibujo de rectángulos igual que antes) ...
         texto_con_saltos = texto.replace("/", "\n")
         ancho_max_bloque = ancho * 0.85 
         chars_por_linea = max(8, int(ancho_max_bloque / (font_size * 0.52)))
         lineas = []
         for parrafo in texto_con_saltos.split('\n'):
             lineas.extend(textwrap.wrap(parrafo, width=chars_por_linea))
+        
         espaciado = int(font_size * 0.25)
         alto_total_texto = len(lineas) * (font_size + espaciado)
-        margen_vertical = alto * 0.10
-        y_inicial = margen_vertical if posicion == "Arriba" else (alto - alto_total_texto - margen_vertical - 20 if posicion == "Abajo" else (alto - alto_total_texto) / 2)
-        max_w_real = 0
+        margen_v = alto * 0.10
+        y_inicial = margen_v if posicion == "Arriba" else (alto - alto_total_texto - margen_v if posicion == "Abajo" else (alto - alto_total_texto) / 2)
+
+        max_w = 0
         for linea in lineas:
             bbox = draw.textbbox((0, 0), linea, font=font)
-            max_w_real = max(max_w_real, bbox[2] - bbox[0])
+            max_w = max(max_w, bbox[2] - bbox[0])
+
         h_bg = color_hex.lstrip('#')
         rgb_bg = tuple(int(h_bg[i:i+2], 16) for i in (0, 2, 4))
-        pad_h, pad_v = 30, 20
-        draw.rectangle([(ancho - max_w_real)/2 - pad_h, y_inicial - pad_v, (ancho + max_w_real)/2 + pad_h, y_inicial + alto_total_texto + pad_v], fill=rgb_bg + (opacidad,))
+        
+        draw.rectangle([(ancho - max_w)/2 - 30, y_inicial - 20, (ancho + max_w)/2 + 30, y_inicial + alto_total_texto + 20], fill=rgb_bg + (opacidad,))
+
         y_cursor = y_inicial
         for linea in lineas:
             bbox = draw.textbbox((0, 0), linea, font=font)
             w_linea = bbox[2] - bbox[0]
             draw.text(((ancho - w_linea) / 2, y_cursor), linea, font=font, fill=color_texto)
             y_cursor += font_size + espaciado
-        out = Image.alpha_composite(img, txt_layer).convert("RGB")
+
+        # --- CAMBIO VITAL AQUÍ ---
+        # 1. Combinamos capas
+        final_img = Image.alpha_composite(img, txt_layer)
+        # 2. CONVERTIMOS A RGB (Esto elimina el canal Alfa/Transparencia que rompe Meta)
+        final_img = final_img.convert("RGB")
+        
         img_byte_arr = io.BytesIO()
-        out.save(img_byte_arr, format='JPEG', quality=95)
+        # 3. Guardamos como JPEG puro con calidad alta
+        final_img.save(img_byte_arr, format='JPEG', subsampling=0, quality=95)
         return img_byte_arr.getvalue()
-    except:
+    except Exception as e:
+        st.error(f"Error procesando imagen: {e}")
         return None
 
 def post_to_instagram_api(caption, image_url, access_token, ig_user_id, imgbb_key, formato="Post"):
@@ -198,8 +209,9 @@ def post_to_instagram_api(caption, image_url, access_token, ig_user_id, imgbb_ke
         # A: Subida a ImgBB con forzado de link directo
         imgbb_url = "https://api.imgbb.com/1/upload"
         if isinstance(image_url, bytes):
-            img_b64 = base64.b64encode(image_url).decode('utf-8')
-            imgbb_res = requests.post(imgbb_url, data={"key": imgbb_key, "image": img_b64}).json()
+            # Le ponemos un nombre de archivo fijo con extensión para que ImgBB lo detecte bien
+            files = {'image': ('post_silvia.jpg', image_url, 'image/jpeg')}
+            imgbb_res = requests.post(imgbb_url, params={"key": imgbb_key}, files=files).json()
         else:
             imgbb_res = requests.post(imgbb_url, data={"key": imgbb_key, "image": image_url}).json()
         
@@ -472,6 +484,7 @@ with tab3:
                 st.divider()
         else:
             st.error(f"Error cargando datos de Meta: {error_msg}")
+
 
 
 

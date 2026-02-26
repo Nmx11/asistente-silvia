@@ -206,60 +206,77 @@ def agregar_texto_a_imagen(url_imagen, texto, posicion="Centro", color_hex="#000
 
 def post_to_instagram_api(caption, image_url, access_token, ig_user_id, imgbb_key, formato="Post"):
     try:
-        # A: Subida a ImgBB
+        # 1. Subir a ImgBB
         imgbb_url = "https://api.imgbb.com/1/upload"
+        # Generamos un nombre único interno para que Meta no use caché, pero que NO rompa la URL
+        nombre_archivo = f"silvia_{int(time.time())}.jpg"
+        
         if isinstance(image_url, bytes):
-            # Enviamos como archivo con nombre explícito
-            files = {'image': ('post.jpg', image_url, 'image/jpeg')}
-            imgbb_res = requests.post(imgbb_url, params={"key": imgbb_key}, files=files).json()
+            # Enviamos el binario con un nombre de archivo que termine en .jpg
+            files = {'image': (nombre_archivo, image_url, 'image/jpeg')}
+            res_imgbb = requests.post(imgbb_url, params={"key": imgbb_key}, files=files).json()
         else:
-            imgbb_res = requests.post(imgbb_url, data={"key": imgbb_key, "image": image_url}).json()
+            # Si es una URL de Pixabay, ImgBB la procesa
+            res_imgbb = requests.post(imgbb_url, data={"key": imgbb_key, "image": image_url}).json()
         
-        if not imgbb_res.get("success"): 
-            return False, f"Error ImgBB: {imgbb_res.get('error', {}).get('message')}"
+        if not res_imgbb.get("success"):
+            return False, f"Error ImgBB: {res_imgbb.get('error', {}).get('message')}"
         
-        # Obtenemos el link directo y le agregamos un 'timestamp' para que Meta no use caché
-        url_directa = imgbb_res["data"]["url"]
-        url_para_meta = f"{url_directa}?t={int(time.time())}" 
+        # USAMOS EL LINK DIRECTO DEL CDN (Sin parámetros ?t= al final)
+        url_directa = res_imgbb["data"]["image"]["url"]
 
-        # B: Crear Contenedor en Meta
+        # 2. Crear contenedor en Meta
         url_container = f"https://graph.facebook.com/v19.0/{ig_user_id}/media"
         payload = {
-            "caption": caption, 
             "access_token": access_token,
-            "image_url": url_para_meta
+            "caption": caption
         }
 
+        # AJUSTE DE FORMATO: Meta exige flags específicos
         if "Story" in formato:
-            payload["media_type"] = "STORIES"
+            payload.update({
+                "image_url": url_directa,
+                "media_type": "STORIES" # OBLIGATORIO para Stories
+            })
+        elif "Reel" in formato:
+            # Para Reels/Videos se usa video_url
+            payload.update({
+                "video_url": url_directa,
+                "media_type": "REELS"
+            })
+        else:
+            # Post de Feed normal
+            payload.update({
+                "image_url": url_directa
+            })
 
         r = requests.post(url_container, data=payload)
-        res_container = r.json()
+        res_c = r.json()
         
         if r.status_code != 200:
-            return False, f"Meta Container Error: {res_container.get('error', {}).get('message')} (Link: {url_para_meta})"
+            return False, f"Meta Container Error: {res_c.get('error', {}).get('message')} (URL enviada: {url_directa})"
         
-        creation_id = res_container.get('id')
+        creation_id = res_c.get('id')
         
-        # C: Espera estratégica (30 segundos)
-        # Es preferible esperar de más que fallar el segundo paso
-        time.sleep(30) 
+        # 3. Pausa de procesamiento (Meta descarga la imagen de ImgBB)
+        # Subimos a 20 segundos para estar seguros
+        time.sleep(20)
         
-        # D: Publicar
+        # 4. Publicar definitivamente
         url_publish = f"https://graph.facebook.com/v19.0/{ig_user_id}/media_publish"
-        r_pub = requests.post(url_publish, data={
-            "creation_id": creation_id, 
+        r_p = requests.post(url_publish, data={
+            "creation_id": creation_id,
             "access_token": access_token
         })
         
-        res_pub = r_pub.json()
-        if r_pub.status_code == 200:
-            return True, res_pub
+        res_p = r_p.json()
+        if r_p.status_code == 200:
+            return True, res_p
         else:
-            return False, f"Meta Publish Error: {res_pub.get('error', {}).get('message')}"
+            return False, f"Meta Publish Error: {res_p.get('error', {}).get('message')}"
 
     except Exception as e:
-        return False, f"Error: {str(e)}"
+        return False, f"Error inesperado: {str(e)}"
 
 def obtener_metricas_instagram(access_token, ig_user_id):
     url = f"https://graph.facebook.com/v19.0/{ig_user_id}/media"
@@ -481,6 +498,7 @@ with tab3:
                 st.divider()
         else:
             st.error(f"Error cargando datos de Meta: {error_msg}")
+
 
 
 

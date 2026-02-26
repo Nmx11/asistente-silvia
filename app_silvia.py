@@ -217,17 +217,12 @@ def post_to_instagram_api(caption, image_url, access_token, ig_user_id, imgbb_ke
             res_imgbb = requests.post(imgbb_url, data={"key": imgbb_key, "image": image_url}).json()
         
         if not res_imgbb.get("success"):
-            return False, f"DEBUG: Error ImgBB -> {res_imgbb}"
+            return False, f"Error ImgBB: {res_imgbb.get('error')}"
 
-        url_final = res_imgbb["data"]["image"]["url"]
+        # CAMBIO: Usamos ['data']['image']['url'] para ir al archivo puro
+        url_final = res_imgbb["data"]["image"]["url"] 
         
-        # --- DIAGNÓSTICO 2: VERIFICACIÓN DE URL ---
-        # Intentamos ver si la URL responde antes de dársela a Meta
-        check_url = requests.head(url_final)
-        if check_url.status_code != 200:
-            return False, f"DEBUG: La URL generada no está activa todavía (Status: {check_url.status_code})"
-
-        # --- DIAGNÓSTICO 3: ENVÍO A META ---
+        # Justo debajo verás esto (el URL container que buscabas):
         url_container = f"https://graph.facebook.com/v19.0/{ig_user_id}/media"
 
         try:
@@ -492,6 +487,7 @@ with tab3:
                 st.divider()
         else:
             st.error(f"Error cargando datos de Meta: {error_msg}")
+
 
 
 

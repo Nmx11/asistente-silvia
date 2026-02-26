@@ -219,7 +219,7 @@ def post_to_instagram_api(caption, image_url, access_token, ig_user_id, imgbb_ke
         if not res_imgbb.get("success"):
             return False, f"DEBUG: Error ImgBB -> {res_imgbb}"
 
-        url_final = res_imgbb["data"]["url"]
+        url_final = res_imgbb["data"]["image"]["url"]
         
         # --- DIAGNÓSTICO 2: VERIFICACIÓN DE URL ---
         # Intentamos ver si la URL responde antes de dársela a Meta
@@ -484,6 +484,7 @@ with tab3:
                 st.divider()
         else:
             st.error(f"Error cargando datos de Meta: {error_msg}")
+
 
 
 

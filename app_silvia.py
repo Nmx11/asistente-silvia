@@ -205,88 +205,77 @@ def agregar_texto_a_imagen(url_imagen, texto, posicion="Centro", color_hex="#000
     except Exception as e:
         return None
 
-def post_to_instagram_api(caption, image_url, access_token, ig_user_id, formato="Post"):
-    """
-    Publica en Instagram usando Cloudinary como puente para evitar bloqueos de Meta (Error 9004).
-    """
+def post_to_instagram_api(caption, image_url, access_token, ig_user_id, imgbb_key, formato="Post"):
     try:
-        # --- 1. CONFIGURACIÓN DE CLOUDINARY ---
-        # Asegúrate de tener estos nombres exactos en tus Secrets de Streamlit
-        cloud_name = st.secrets["CLOUDINARY_CLOUD_NAME"]
-        api_key = st.secrets["CLOUDINARY_API_KEY"]
-        api_secret = st.secrets["CLOUDINARY_API_SECRET"]
+        # 1. Intentamos usar Cloudinary si las claves existen, sino usamos ImgBB corregido
+        cloud_name = st.secrets.get("CLOUDINARY_CLOUD_NAME")
         
-        # --- 2. SUBIDA A CLOUDINARY ---
-        timestamp = int(time.time())
-        # Creamos una firma de seguridad (Signature) requerida por Cloudinary
-        signature_str = f"timestamp={timestamp}{api_secret}"
-        signature = hashlib.sha1(signature_str.encode('utf-8')).hexdigest()
-        
-        cloudinary_url = f"https://api.cloudinary.com/v1_1/{cloud_name}/image/upload"
-        
-        payload_cloud = {
-            "timestamp": timestamp,
-            "api_key": api_key,
-            "signature": signature
-        }
-        
-        # Enviamos la imagen (ya sea que venga de Pixabay o sea generada por PIL)
-        if isinstance(image_url, bytes):
-            files = {'file': ('post.jpg', image_url, 'image/jpeg')}
+        if cloud_name:
+            # --- LÓGICA CLOUDINARY ---
+            api_key = st.secrets["CLOUDINARY_API_KEY"]
+            api_secret = st.secrets["CLOUDINARY_API_SECRET"]
+            timestamp = int(time.time())
+            signature_str = f"timestamp={timestamp}{api_secret}"
+            signature = hashlib.sha1(signature_str.encode('utf-8')).hexdigest()
+            cloudinary_url = f"https://api.cloudinary.com/v1_1/{cloud_name}/image/upload"
+            
+            payload_cloud = {"timestamp": timestamp, "api_key": api_key, "signature": signature}
+            
+            if isinstance(image_url, bytes):
+                files = {'file': ('image.jpg', image_url, 'image/jpeg')}
+                res_cloud = requests.post(cloudinary_url, data=payload_cloud, files=files).json()
+            else:
+                payload_cloud["file"] = image_url
+                res_cloud = requests.post(cloudinary_url, data=payload_cloud).json()
+            
+            if "secure_url" not in res_cloud:
+                return False, f"Error Cloudinary: {res_cloud.get('error', {}).get('message')}"
+            url_final = res_cloud["secure_url"]
         else:
-            # Si es una URL (de Pixabay o Pinterest), Cloudinary la sube por nosotros
-            payload_cloud["file"] = image_url
-            files = None
+            # --- LÓGICA IMGBB (Corrección de emergencia si no hay Cloudinary) ---
+            imgbb_url = "https://api.imgbb.com/1/upload"
+            if isinstance(image_url, bytes):
+                files = {'image': ('post.jpg', image_url, 'image/jpeg')}
+                res = requests.post(imgbb_url, params={"key": imgbb_key}, files=files).json()
+            else:
+                res = requests.post(imgbb_url, data={"key": imgbb_key, "image": image_url}).json()
+            
+            if not res.get("success"):
+                return False, f"Error ImgBB: {res.get('error', {}).get('message')}"
+            # EL CAMBIO CLAVE: Usamos 'url' directo al archivo
+            url_final = res["data"]["image"]["url"]
 
-        res_cloud = requests.post(cloudinary_url, data=payload_cloud, files=files).json()
-        
-        if "secure_url" not in res_cloud:
-            return False, f"Error en Cloudinary: {res_cloud.get('error', {}).get('message')}"
-        
-        url_final = res_cloud["secure_url"]
-
-        # --- 3. CREAR CONTENEDOR EN META (Instagram) ---
+        # 2. CONTENEDOR META
         url_container = f"https://graph.facebook.com/v19.0/{ig_user_id}/media"
-        
         payload_meta = {
             "access_token": access_token,
             "caption": caption,
-            "image_url": url_final
+            "image_url": url_final,
+            "media_type": "IMAGE"
         }
-        
-        # Ajustamos según el formato
         if "Story" in formato:
             payload_meta["media_type"] = "STORIES"
-        else:
-            # Para Feed, forzamos IMAGE para evitar ambigüedades
-            payload_meta["media_type"] = "IMAGE"
 
         r = requests.post(url_container, data=payload_meta)
         res_c = r.json()
         
         if r.status_code != 200:
-            error_data = res_c.get('error', {})
-            return False, f"Error Meta (Contenedor): {error_data.get('message')} (Código: {error_data.get('code')})"
+            return False, f"Meta Error: {res_c.get('error', {}).get('message')}"
         
         creation_id = res_c.get('id')
+        time.sleep(15) # Espera para que Meta procese
         
-        # Espera de cortesía para que los servidores de Instagram procesen la imagen
-        time.sleep(10)
-        
-        # --- 4. PUBLICACIÓN FINAL ---
-        url_publish = f"https://graph.facebook.com/v19.0/{ig_user_id}/media_publish"
-        r_p = requests.post(url_publish, data={
-            "creation_id": creation_id, 
-            "access_token": access_token
-        })
+        # 3. PUBLICAR
+        url_p = f"https://graph.facebook.com/v19.0/{ig_user_id}/media_publish"
+        r_p = requests.post(url_p, data={"creation_id": creation_id, "access_token": access_token})
         
         if r_p.status_code == 200:
-            return True, "¡Publicado exitosamente!"
+            return True, "¡Publicado!"
         else:
-            return False, f"Error Meta (Publicación): {r_p.json().get('error', {}).get('message')}"
+            return False, f"Error final: {r_p.json().get('error', {}).get('message')}"
 
     except Exception as e:
-        return False, f"Error inesperado: {str(e)}"
+        return False, f"Error crítico: {str(e)}"
 
 def obtener_metricas_instagram(access_token, ig_user_id):
     url = f"https://graph.facebook.com/v19.0/{ig_user_id}/media"
@@ -508,6 +497,7 @@ with tab3:
                 st.divider()
         else:
             st.error(f"Error cargando datos de Meta: {error_msg}")
+
 
 
 

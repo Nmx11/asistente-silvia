@@ -195,44 +195,58 @@ def agregar_texto_a_imagen(url_imagen, texto, posicion="Centro", color_hex="#000
 
 def post_to_instagram_api(caption, image_url, access_token, ig_user_id, imgbb_key, formato="Post"):
     try:
-        # A: Subida a ImgBB con limpieza de URL
+        # A: Subida a ImgBB
         imgbb_url = "https://api.imgbb.com/1/upload"
         if isinstance(image_url, bytes):
             imgbb_res = requests.post(imgbb_url, params={"key": imgbb_key}, files={"image": image_url}).json()
         else:
-            # Si ya es una URL (de Pixabay o Base64), ImgBB la procesa igual
             imgbb_res = requests.post(imgbb_url, data={"key": imgbb_key, "image": image_url}).json()
         
         if not imgbb_res.get("success"): 
             return False, f"Error en ImgBB: {imgbb_res.get('error', {}).get('message')}"
         
-        # OJO ACÁ: Usamos 'url' que es el link directo al archivo físico
-        url_limpia = imgbb_res["data"]["url"]
+        # OJO: Meta requiere el link DIRECTO a la imagen física
+        url_fiscica = imgbb_res["data"]["url"] 
 
         # B: Crear Contenedor en Meta
         url_container = f"https://graph.facebook.com/v19.0/{ig_user_id}/media"
+        
+        # Preparamos el payload según el tipo de contenido
         payload = {
             "caption": caption, 
             "access_token": access_token
         }
-        
-        if "Reel" in formato:
-            payload.update({"video_url": url_limpia, "media_type": "REELS"})
+
+        if "Story" in formato:
+            # Para Stories, Meta requiere marcar el media_type y que sea solo imagen/video
+            payload.update({
+                "image_url": url_fiscica,
+                "media_type": "STORIES"
+            })
+        elif "Reel" in formato:
+            payload.update({
+                "video_url": url_fiscica,
+                "media_type": "REELS"
+            })
         else:
-            payload.update({"image_url": url_limpia}) # Meta necesita ver una extensión .jpg o .png al final
+            # Post normal (Imagen)
+            payload.update({
+                "image_url": url_fiscica
+            })
 
         r = requests.post(url_container, data=payload)
         res_container = r.json()
         
         if r.status_code != 200: 
-            return False, f"Meta Container Error: {res_container.get('error', {}).get('message')}"
+            # Si Meta rechaza, mostramos el link que intentó usar para verificarlo
+            return False, f"Meta Container Error: {res_container.get('error', {}).get('message')} (Link: {url_fiscica})"
         
         creation_id = res_container.get('id')
         
-        # C: Pausa de seguridad (Meta tarda en procesar la imagen externa)
-        time.sleep(10)
+        # C: Espera obligatoria (Meta procesa la imagen desde ImgBB)
+        time.sleep(15) 
         
-        # D: Publicar definitivamente
+        # D: Publicar
         url_publish = f"https://graph.facebook.com/v19.0/{ig_user_id}/media_publish"
         r_pub = requests.post(url_publish, data={
             "creation_id": creation_id, 
@@ -246,7 +260,7 @@ def post_to_instagram_api(caption, image_url, access_token, ig_user_id, imgbb_ke
             return False, f"Meta Publish Error: {res_pub.get('error', {}).get('message')}"
 
     except Exception as e:
-        return False, f"Excepción en el proceso: {str(e)}"
+        return False, f"Error inesperado: {str(e)}"
 
 def obtener_metricas_instagram(access_token, ig_user_id):
     url = f"https://graph.facebook.com/v19.0/{ig_user_id}/media"
@@ -468,6 +482,7 @@ with tab3:
                 st.divider()
         else:
             st.error(f"Error cargando datos de Meta: {error_msg}")
+
 
 
 

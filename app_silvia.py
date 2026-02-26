@@ -219,10 +219,11 @@ def post_to_instagram_api(caption, image_url, access_token, ig_user_id, imgbb_ke
         if not res_imgbb.get("success"):
             return False, f"Error ImgBB: {res_imgbb.get('error')}"
 
-        # CAMBIO: Usamos ['data']['image']['url'] para ir al archivo puro
-        url_final = res_imgbb["data"]["image"]["url"] 
+        url_final = res_imgbb["data"]["image"]["url"]
         
-        # Justo debajo verás esto (el URL container que buscabas):
+        # Agregá este sleep de 5 segundos justo antes de url_container
+        time.sleep(5) 
+
         url_container = f"https://graph.facebook.com/v19.0/{ig_user_id}/media"
 
         try:
@@ -487,6 +488,7 @@ with tab3:
                 st.divider()
         else:
             st.error(f"Error cargando datos de Meta: {error_msg}")
+
 
 
 

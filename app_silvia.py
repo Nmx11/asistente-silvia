@@ -142,7 +142,7 @@ def buscar_imagenes_pixabay(query, api_key, formato="Post", page=1):
 
 def agregar_texto_a_imagen(url_imagen, texto, posicion="Centro", color_hex="#000000", tamano_prop=12, opacidad=180, color_texto="#FFFFFF"):
     try:
-        res = requests.get(url_imagen)
+        res = requests.get(url_imagen, timeout=10)
         img = Image.open(io.BytesIO(res.content)).convert("RGBA")
         txt_layer = Image.new('RGBA', img.size, (0,0,0,0))
         draw = ImageDraw.Draw(txt_layer)
@@ -151,7 +151,7 @@ def agregar_texto_a_imagen(url_imagen, texto, posicion="Centro", color_hex="#000
         font_size = int(alto * (tamano_prop / 320)) 
         if font_size < 18: font_size = 18 
 
-        # ... (Mantener tu lógica de fuentes y texto igual) ...
+        # ... (Tu lógica de fuentes y texto se mantiene igual) ...
         font = None
         rutas_fuentes = ["/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"]
         for ruta in rutas_fuentes:
@@ -161,8 +161,9 @@ def agregar_texto_a_imagen(url_imagen, texto, posicion="Centro", color_hex="#000
             except: continue
         if not font: font = ImageFont.load_default()
 
+        # Ajuste de saltos de línea
         texto_con_saltos = texto.replace("/", "\n")
-        ancho_max_bloque = ancho * 0.85 
+        ancho_max_bloque = ancho * 0.85
         chars_por_linea = max(8, int(ancho_max_bloque / (font_size * 0.52)))
         lineas = []
         for parrafo in texto_con_saltos.split('\n'):
@@ -190,63 +191,59 @@ def agregar_texto_a_imagen(url_imagen, texto, posicion="Centro", color_hex="#000
             draw.text(((ancho - w_linea) / 2, y_cursor), linea, font=font, fill=color_texto)
             y_cursor += font_size + espaciado
 
-        # --- CAMBIO VITAL AQUÍ ---
-        # 1. Combinamos capas
-        final_img = Image.alpha_composite(img, txt_layer)
-        # 2. CONVERTIMOS A RGB (Esto elimina el canal Alfa/Transparencia que rompe Meta)
-        final_img = final_img.convert("RGB")
+        # --- REPARACIÓN PARA META ---
+        # 1. Aplastamos la imagen para quitar la transparencia (RGBA -> RGB)
+        final_img = Image.new("RGB", img.size, (255, 255, 255))
+        final_img.paste(img, mask=img.split()[3]) # Pegamos la original
+        final_img = Image.alpha_composite(img, txt_layer).convert("RGB")
         
         img_byte_arr = io.BytesIO()
-        # 3. Guardamos como JPEG puro con calidad alta
-        final_img.save(img_byte_arr, format='JPEG', subsampling=0, quality=95)
+        # 2. Guardamos como JPEG puro
+        final_img.save(img_byte_arr, format='JPEG', quality=90, optimize=True)
         return img_byte_arr.getvalue()
     except Exception as e:
-        st.error(f"Error procesando imagen: {e}")
         return None
 
 def post_to_instagram_api(caption, image_url, access_token, ig_user_id, imgbb_key, formato="Post"):
     try:
-        # A: Subida a ImgBB con forzado de link directo
+        # A: Subida a ImgBB
         imgbb_url = "https://api.imgbb.com/1/upload"
         if isinstance(image_url, bytes):
-            # Le ponemos un nombre de archivo fijo con extensión para que ImgBB lo detecte bien
-            files = {'image': ('post_silvia.jpg', image_url, 'image/jpeg')}
+            # Enviamos como archivo con nombre explícito
+            files = {'image': ('post.jpg', image_url, 'image/jpeg')}
             imgbb_res = requests.post(imgbb_url, params={"key": imgbb_key}, files=files).json()
         else:
             imgbb_res = requests.post(imgbb_url, data={"key": imgbb_key, "image": image_url}).json()
         
         if not imgbb_res.get("success"): 
-            return False, f"Error en ImgBB: {imgbb_res.get('error', {}).get('message')}"
+            return False, f"Error ImgBB: {imgbb_res.get('error', {}).get('message')}"
         
-        # --- EL CAMBIO CLAVE ---
-        # Usamos 'url' pero le aseguramos a Meta que es una imagen limpia
-        url_directa = imgbb_res["data"]["image"]["url"] 
+        # Obtenemos el link directo y le agregamos un 'timestamp' para que Meta no use caché
+        url_directa = imgbb_res["data"]["url"]
+        url_para_meta = f"{url_directa}?t={int(time.time())}" 
 
         # B: Crear Contenedor en Meta
         url_container = f"https://graph.facebook.com/v19.0/{ig_user_id}/media"
-        
         payload = {
             "caption": caption, 
             "access_token": access_token,
-            "image_url": url_directa  # Meta es muy estricto aquí
+            "image_url": url_para_meta
         }
 
-        # Si es Story, le avisamos a Meta explícitamente
         if "Story" in formato:
             payload["media_type"] = "STORIES"
 
         r = requests.post(url_container, data=payload)
         res_container = r.json()
         
-        if r.status_code != 200: 
-            error_msg = res_container.get('error', {}).get('message', 'Error desconocido')
-            return False, f"Meta Container Error: {error_msg} (Link: {url_directa})"
+        if r.status_code != 200:
+            return False, f"Meta Container Error: {res_container.get('error', {}).get('message')} (Link: {url_para_meta})"
         
         creation_id = res_container.get('id')
         
-        # C: Espera de procesamiento (Subimos a 25 segundos)
-        # Meta a veces tarda en indexar la imagen externa
-        time.sleep(25) 
+        # C: Espera estratégica (30 segundos)
+        # Es preferible esperar de más que fallar el segundo paso
+        time.sleep(30) 
         
         # D: Publicar
         url_publish = f"https://graph.facebook.com/v19.0/{ig_user_id}/media_publish"
@@ -262,7 +259,7 @@ def post_to_instagram_api(caption, image_url, access_token, ig_user_id, imgbb_ke
             return False, f"Meta Publish Error: {res_pub.get('error', {}).get('message')}"
 
     except Exception as e:
-        return False, f"Error inesperado: {str(e)}"
+        return False, f"Error: {str(e)}"
 
 def obtener_metricas_instagram(access_token, ig_user_id):
     url = f"https://graph.facebook.com/v19.0/{ig_user_id}/media"
@@ -484,6 +481,7 @@ with tab3:
                 st.divider()
         else:
             st.error(f"Error cargando datos de Meta: {error_msg}")
+
 
 
 

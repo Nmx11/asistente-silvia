@@ -322,7 +322,7 @@ with tab1:
 
         st.divider()
         st.subheader("2. Multimedia Visual")
-        busqueda = st.text_input("🎨 ¿Qué imagen buscamos?")
+        busqueda = st.text_input("🎨 ¿Qué imagen buscamos?", key="busqueda_visual_silvia")
         col_btn1, col_btn2 = st.columns(2)
         with col_btn1:
             if st.button("🔍 Buscar en Pixabay") and busqueda:
@@ -468,6 +468,7 @@ with tab3:
                 st.divider()
         else:
             st.error(f"Error cargando datos de Meta: {error_msg}")
+
 
 
 
